@@ -59,6 +59,12 @@ FIND_LIBRARY(
   HINTS /usr/local/lib
   )
 
+FIND_LIBRARY(
+  PTHREAD
+  NAMES
+  pthread
+  )
+
 IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   FIND_LIBRARY(
     LIBC++
@@ -72,6 +78,7 @@ ENDIF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 #
 INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/src")
 INCLUDE_DIRECTORIES("/usr/local/include")
+INCLUDE_DIRECTORIES("/usr/include/mysql")
 
 #
 # Project Source and Executable
@@ -95,4 +102,6 @@ TARGET_LINK_LIBRARIES(
   ${BOOST_IOSTREAMS_LIBS}
   ${BOOST_SYSTEM_LIBS}
   ${LIBC++}
+  ${PTHREAD}
   )
+
