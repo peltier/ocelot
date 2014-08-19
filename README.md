@@ -1,5 +1,7 @@
 ## Ocelot
 
+[![Build Status](https://travis-ci.org/pmirror/ocelot.svg?branch=master)](https://travis-ci.org/pmirror/ocelot)
+
 A light-weight high-speed BitTorrent tracker written in C++. Part of the Gazelle Project.
 
 ### Building
