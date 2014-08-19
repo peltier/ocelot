@@ -31,7 +31,7 @@ By default, CMake will assume these can all be found in `/usr/local/include`,  `
 
 ### Platforms
 
-Ocelot has been tested on OSX Mavericks using CMake, and Ubuntu 14.04 using GCC 4.8.
+Ocelot has been tested on OSX Mavericks using Clang, and Ubuntu 14.04 using GCC 4.8.
 
 ### License
 
