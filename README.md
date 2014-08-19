@@ -27,7 +27,7 @@ Ocelot requires the following dependencies:
 3. libev
 4. mysql++
 
-By default, CMake will assume these can all be found in `/usr/local/include` and `/usr/local/lib`
+By default, CMake will assume these can all be found in `/usr/local/include`,  `/usr/include`, or  `/usr/include/mysql` and libs found in `/usr/local/lib`. These should be the default paths for aptitude and homebrew.
 
 ### Platforms
 
