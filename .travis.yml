@@ -22,6 +22,9 @@ before_install:
 # libev
   - sudo apt-get install -y libev-dev
 
-script: "cp src/config.cpp.template src/config.cpp && cmake . && make"
+script:
+  - cp src/config.cpp.template src/config.cpp
+  - cmake .
+  - make
 notifications:
   email: false
