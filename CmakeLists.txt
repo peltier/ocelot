@@ -20,8 +20,6 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wpedantic")
 
 IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  # libev bug: https://github.com/cocaine/cocaine-framework-native/issues/8#issuecomment-37831669
-  UNSET(EV_ERROR)
   # Mac OS X specific code
   MESSAGE(STATUS "Compliling for Darwin")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
