@@ -1,6 +1,5 @@
 #ifndef OCELOT_DB_H
 #define OCELOT_DB_H
-#pragma GCC visibility push(default)
 
 #include <mysql++/mysql++.h>
 #include <string>
@@ -75,5 +74,4 @@ class mysql {
 
 };
 
-#pragma GCC visibility pop
 #endif
