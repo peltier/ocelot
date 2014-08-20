@@ -9,7 +9,6 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <unistd.h>
 
 #ifdef __APPLE__
   // libev hack: http://goo.gl/7TjNPD

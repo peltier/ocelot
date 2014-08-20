@@ -197,7 +197,7 @@ std::string worker::work(std::string &input, std::string &ip) {
   }
 
   if (action == ANNOUNCE) {
-    std::unique_lock<std::mutex> tl_lock(m_db->torrent_list_mutex);
+    std::unique_lock<std::mutex> tl_lock(m_db->m_torrent_list_mutex);
     // Let's translate the infohash into something nice
     // info_hash is a url encoded (hex) base 20 number
     std::string info_hash_decoded = hex_decode(params["info_hash"]);
@@ -966,7 +966,7 @@ void worker::reap_peers() {
         std::unique_lock<std::mutex> us_lock(m_ustats_lock);
         del_p->second.user->decr_leeching();
         us_lock.unlock();
-        std::unique_lock<std::mutex> tl_lock(m_db->torrent_list_mutex);
+        std::unique_lock<std::mutex> tl_lock(m_db->m_torrent_list_mutex);
         t->second.leechers.erase(del_p);
         reaped_this = true;
         reaped_l++;
@@ -981,7 +981,7 @@ void worker::reap_peers() {
         std::unique_lock<std::mutex> us_lock(m_ustats_lock);
         del_p->second.user->decr_seeding();
         us_lock.unlock();
-        std::unique_lock<std::mutex> tl_lock(m_db->torrent_list_mutex);
+        std::unique_lock<std::mutex> tl_lock(m_db->m_torrent_list_mutex);
         t->second.seeders.erase(del_p);
         reaped_this = true;
         reaped_s++;

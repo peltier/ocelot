@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     std::cout << "Exiting" << std::endl;
     return 0;
   }
-  db.verbose_flush = verbose;
+  db.m_verbose_flush = verbose;
 
   site_comm sc(conf);
   sc.verbose_flush = verbose;
