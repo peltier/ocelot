@@ -58,7 +58,7 @@ connection_mother::connection_mother(worker * worker_obj, config * config_obj, m
   }
 
   // Create libev timer
-  schedule timer(this, worker_obj, conf, db, sc);
+  schedule timer(worker_obj, conf, db, sc);
 
   schedule_event.set<schedule, &schedule::handle>(&timer);
   schedule_event.set(conf->schedule_interval, conf->schedule_interval); // After interval, every interval

@@ -6,37 +6,39 @@
 #include "schedule.h"
 
 
-schedule::schedule(connection_mother * mother_obj, worker* worker_obj, config* conf_obj, mysql * db_obj, site_comm * sc_obj) : mother(mother_obj), work(worker_obj), conf(conf_obj), db(db_obj), sc(sc_obj) {
-  counter = 0;
-  last_opened_connections = 0;
+schedule::schedule(worker* worker_obj, config* conf_obj, mysql * db_obj, site_comm * sc_obj)
+  : m_worker(worker_obj), m_conf(conf_obj), m_db(db_obj), m_site_comm(sc_obj)
+{
+  m_counter = 0;
+  m_last_opened_connections = 0;
 
-  next_reap_peers = time(NULL) + conf->reap_peers_interval + 40;
+  m_next_reap_peers = time(NULL) + m_conf->reap_peers_interval + 40;
 }
 //---------- Schedule - gets called every schedule_interval seconds
 void schedule::handle(ev::timer &watcher, int events_flags) {
-  stats.connection_rate = (stats.opened_connections - last_opened_connections) / conf->schedule_interval;
-  if (counter % 20 == 0) {
-    std::cout << "Schedule run #" << counter << " - open: " << stats.open_connections << ", opened: "
+  stats.connection_rate = (stats.opened_connections - m_last_opened_connections) / m_conf->schedule_interval;
+  if (m_counter % 20 == 0) {
+    std::cout << "Schedule run #" << m_counter << " - open: " << stats.open_connections << ", opened: "
     << stats.opened_connections << ", speed: "
     << stats.connection_rate << "/s" << std::endl;
   }
 
-  if (work->get_status() == CLOSING && db->all_clear() && sc->all_clear()) {
+  if (m_worker->get_status() == CLOSING && m_db->all_clear() && m_site_comm->all_clear()) {
     std::cout << "all clear, shutting down" << std::endl;
     exit(0);
   }
 
-  last_opened_connections = stats.opened_connections;
+  m_last_opened_connections = stats.opened_connections;
 
-  db->flush();
-  sc->flush_tokens();
+  m_db->flush();
+  m_site_comm->flush_tokens();
 
   time_t cur_time = time(NULL);
 
-  if (cur_time > next_reap_peers) {
-    work->start_reaper();
-    next_reap_peers = cur_time + conf->reap_peers_interval;
+  if (cur_time > m_next_reap_peers) {
+    m_worker->start_reaper();
+    m_next_reap_peers = cur_time + m_conf->reap_peers_interval;
   }
 
-  counter++;
+  m_counter++;
 }
