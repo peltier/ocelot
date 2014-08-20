@@ -143,7 +143,7 @@ connection_middleman::~connection_middleman() {
 // Handler to read data from the socket, called by event loop when socket is readable
 void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
 
-  auto buffer = std::vector<char>( m_conf->max_read_buffer + 1  ).data();
+  char buffer[ m_conf->max_read_buffer + 1 ];
 
   memset(buffer, 0, m_conf->max_read_buffer + 1);
   int ret = recv(m_socket_connection, &buffer, m_conf->max_read_buffer, 0);

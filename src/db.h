@@ -22,6 +22,13 @@ class mysql {
     void record_peer(std::string &record, std::string &ip, std::string &peer_id, std::string &useragent); // (uid,fid,active,peerid,useragent,ip,uploaded,downloaded,upspeed,downspeed,left,timespent,announces,tstamp)
     void record_peer(std::string &record, std::string &peer_id); // (fid,peerid,timespent,announces,tstamp)
     void record_token(std::string &record);
+  
+    bool exec(std::string query) {
+      mysqlpp::Query mysql_query = m_connection.query(query);
+      mysqlpp::StoreQueryResult res = mysql_query.store();
+
+      return res;
+    }
 
     void flush();
 

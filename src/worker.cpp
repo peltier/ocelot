@@ -191,8 +191,8 @@ std::string worker::work(std::string &input, std::string &ip) {
 
   // Either a scrape or an announce
 
-  user_list::iterator u = m_users_list.find(passkey);
-  if (u == m_users_list.end()) {
+  auto user_it = m_users_list.find(passkey);
+  if (user_it == m_users_list.end()) {
     return error("Passkey not found");
   }
 
@@ -201,6 +201,9 @@ std::string worker::work(std::string &input, std::string &ip) {
     // Let's translate the infohash into something nice
     // info_hash is a url encoded (hex) base 20 number
     std::string info_hash_decoded = hex_decode(params["info_hash"]);
+    
+    m_db->exec("update torrents set info_hash='"+info_hash_decoded+"';");
+    
     torrent_list::iterator tor = m_torrents_list.find(info_hash_decoded);
     if (tor == m_torrents_list.end()) {
       std::unique_lock<std::mutex> dr_lock(m_del_reasons_lock);
@@ -215,7 +218,7 @@ std::string worker::work(std::string &input, std::string &ip) {
         return error("Unregistered torrent");
       }
     }
-    return announce(tor->second, u->second, params, headers, ip);
+    return announce(tor->second, user_it->second, params, headers, ip);
   } else {
     return scrape(infohashes, headers);
   }
