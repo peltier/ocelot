@@ -3,6 +3,7 @@
 
 #include <string>
 #include <cstdlib>
+
 long strtolong(const std::string& str);
 int64_t strtolonglong(const std::string& str);
 std::string inttostr(int i);

@@ -16,7 +16,6 @@ int64_t strtolonglong(const std::string& str) {
   return i;
 }
 
-
 std::string inttostr(const int i) {
   std::string str;
   std::stringstream out;
