@@ -10,8 +10,7 @@ static connection_mother *mother;
 static worker *work;
 struct stats stats;
 
-static void sig_handler(int sig)
-{
+static void sig_handler(int sig) {
   std::cout << "Caught SIGINT/SIGTERM" << std::endl;
   if (work->signal(sig)) {
     exit(0);
