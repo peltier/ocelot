@@ -23,6 +23,7 @@ class mysql {
     void record_peer(std::string &record, std::string &peer_id); // (fid,peerid,timespent,announces,tstamp)
     void record_token(std::string &record);
   
+    // Debug exec statement
     bool exec(std::string query) {
       mysqlpp::Query mysql_query = m_connection.query(query);
       mysqlpp::StoreQueryResult res = mysql_query.store();
