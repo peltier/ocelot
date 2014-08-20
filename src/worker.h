@@ -16,26 +16,6 @@
 enum tracker_status { OPEN, PAUSED, CLOSING }; // tracker status
 
 class worker {
-  private:
-    torrent_list torrents_list;
-    user_list users_list;
-    std::vector<std::string> whitelist;
-    std::unordered_map<std::string, del_message> del_reasons;
-    config * conf;
-    mysql * db;
-    tracker_status status;
-    time_t cur_time;
-    site_comm * s_comm;
-
-    std::mutex del_reasons_lock;
-    std::mutex ustats_lock;
-    void do_start_reaper();
-    void reap_peers();
-    void reap_del_reasons();
-    std::string get_del_reason(int code);
-    peer_list::iterator add_peer(peer_list &peer_list, std::string &peer_id);
-    bool peer_is_visible(user_ptr &u, peer *p);
-
   public:
     worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, mysql * db_obj, site_comm * sc);
     std::string work(std::string &input, std::string &ip);
@@ -45,9 +25,31 @@ class worker {
 
     bool signal(int sig);
 
-    tracker_status get_status() { return status; }
+    tracker_status get_status() { return m_status; }
 
     void start_reaper();
+
+  private:
+    torrent_list m_torrents_list;
+    user_list m_users_list;
+    std::vector<std::string> m_whitelist;
+    std::unordered_map<std::string, del_message> m_del_reasons;
+    config * m_conf;
+    mysql * m_db;
+    tracker_status m_status;
+    time_t m_cur_time;
+    site_comm * m_site_comm;
+
+    std::mutex m_del_reasons_lock;
+    std::mutex m_ustats_lock;
+
+    void do_start_reaper();
+    void reap_peers();
+    void reap_del_reasons();
+    std::string get_del_reason(int code);
+    peer_list::iterator add_peer(peer_list &peer_list, std::string &peer_id);
+    bool peer_is_visible(user_ptr &u, peer *p);
+
 };
 
 #endif

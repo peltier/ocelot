@@ -2,14 +2,6 @@
 #define OCELOT_USER_H
 
 class user {
-  private:
-    int id;
-    bool leechstatus;
-    bool protect_ip;
-    struct {
-      unsigned int leeching;
-      unsigned int seeding;
-    } stats;
   public:
     user(int uid, bool leech, bool protect);
     int get_id();
@@ -23,6 +15,16 @@ class user {
     void incr_seeding();
     unsigned int get_leeching();
     unsigned int get_seeding();
+
+  private:
+    int m_id;
+    bool m_leechstatus;
+    bool m_protect_ip;
+
+    struct {
+      unsigned int leeching;
+      unsigned int seeding;
+    } m_stats;
 };
 
 #endif

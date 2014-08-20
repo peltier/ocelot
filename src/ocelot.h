@@ -93,5 +93,7 @@ struct stats {
   uint64_t bytes_written;
   time_t start_time;
 };
+
 extern struct stats stats;
+
 #endif

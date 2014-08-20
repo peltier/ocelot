@@ -9,7 +9,6 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <unistd.h>
 
 #ifdef __APPLE__
   // libev hack: http://goo.gl/7TjNPD
@@ -59,47 +58,46 @@ THE WORKER
 
 // THE MOTHER - Spawns connection middlemen
 class connection_mother {
-  private:
-    int listen_socket;
-    sockaddr_in address;
-    socklen_t addr_len;
-    worker * work;
-    config * conf;
-    mysql * db;
-    site_comm * sc;
-    ev::timer schedule_event;
-
   public:
     connection_mother(worker * worker_obj, config * config_obj, mysql * db_obj, site_comm * sc_obj);
     void handle_connect(ev::io &watcher, int events_flags);
     ~connection_mother();
+
+  private:
+    int m_listen_socket;
+    sockaddr_in m_address;
+    socklen_t m_address_length;
+    worker * m_worker;
+    config * m_conf;
+    mysql * m_db;
+    site_comm * m_site_comm;
+    ev::timer m_schedule_event;
 };
 
 // THE MIDDLEMAN
 // Created by connection_mother
 // Add their own watchers to see when sockets become readable
 class connection_middleman {
-  private:
-    int connect_sock;
-    unsigned int written;
-    ev::io read_event;
-    ev::io write_event;
-    ev::timer timeout_event;
-    std::string request;
-    std::string response;
-
-    config * conf;
-    connection_mother * mother;
-    worker * work;
-    sockaddr_in client_addr;
-
   public:
-    connection_middleman(int &listen_socket, sockaddr_in &address, socklen_t &addr_len, worker* work, connection_mother * mother_arg, config * config_obj);
+    connection_middleman(int &listen_socket, sockaddr_in &address, socklen_t &addr_len, worker* work, config * config_obj);
     ~connection_middleman();
 
     void handle_read(ev::io &watcher, int events_flags);
     void handle_write(ev::io &watcher, int events_flags);
     void handle_timeout(ev::timer &watcher, int events_flags);
+
+  private:
+    int m_socket_connection;
+    unsigned int m_written;
+    ev::io m_read_event;
+    ev::io m_write_event;
+    ev::timer m_timeout_event;
+    std::string m_request;
+    std::string m_response;
+
+    config * m_conf;
+    worker * m_worker;
+    sockaddr_in m_client_address;
 };
 
 #endif

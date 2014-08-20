@@ -6,20 +6,19 @@
 #include <iostream>
 
 class schedule {
-  private:
-    connection_mother * mother;
-    worker * work;
-    config * conf;
-    mysql * db;
-    site_comm * sc;
-    uint64_t last_opened_connections;
-    int counter;
-
-    time_t next_flush;
-    time_t next_reap_peers;
   public:
-    schedule(connection_mother * mother_obj, worker * worker_obj, config* conf_obj, mysql * db_obj, site_comm * sc_obj);
+    schedule(worker * worker_obj, config* conf_obj, mysql * db_obj, site_comm * sc_obj);
     void handle(ev::timer &watcher, int events_flags);
+
+  private:
+    worker * m_worker;
+    config * m_conf;
+    mysql * m_db;
+    site_comm * m_site_comm;
+    uint64_t m_last_opened_connections;
+    int m_counter;
+
+    time_t m_next_reap_peers;
 };
 
 #endif
