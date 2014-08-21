@@ -1,11 +1,3 @@
-//
-//  request.h
-//  ocelot
-//
-//  Created by Garrett Thornburg on 8/20/14.
-//
-//
-
 #ifndef ocelot_request_h
 #define ocelot_request_h
 
@@ -116,11 +108,6 @@ namespace request {
       
       // Save the key / value pair
       request_params[ key_buffer ] = value_buffer;
-    }
-    
-    // DEBUG DUMP
-    for( auto it = request_params.begin(); it != request_params.end(); ++it ) {
-      std::cout << it->first << " : " << it->second << std::endl;
     }
     
     return request_params;
