@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
   // we don't use printf so make cout/cerr a little bit faster
   std::ios_base::sync_with_stdio(false);
   
-  Logger::set_log_level( LoggerLevel::INFO );
+  Logger::set_log_level( LogLevel::INFO );
 
   config conf;
 
