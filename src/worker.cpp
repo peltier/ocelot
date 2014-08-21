@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <mutex>
 #include <thread>
+#include <cctype>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -153,10 +154,13 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_map_t &params, pa
   }
   bool gzip = false;
 
-  int64_t left = std::max((int64_t)0, strtolonglong(params["left"]));
-  int64_t uploaded = std::max((int64_t)0, strtolonglong(params["uploaded"]));
-  int64_t downloaded = std::max((int64_t)0, strtolonglong(params["downloaded"]));
-  int64_t corrupt = std::max((int64_t)0, strtolonglong(params["corrupt"]));
+  int64_t left = std::max((int64_t)0, std::stoll(params["left"]));
+  int64_t uploaded = std::max((int64_t)0, std::stoll(params["uploaded"]));
+  int64_t downloaded = std::max((int64_t)0, std::stoll(params["downloaded"]));
+  int64_t corrupt = 0;
+  if( params.count("corrupt") > 0 ) {
+    std::max((int64_t)0, std::stoll(params["corrupt"]));
+  }
 
   int snatched = 0; // This is the value that gets sent to the database on a snatch
   int active = 1; // This is the value that marks a peer as active/inactive in the database
@@ -341,7 +345,7 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_map_t &params, pa
     }
   }
 
-  unsigned int port = strtolong(params["port"]);
+  unsigned int port = std::stol(params["port"]);
   // Generate compact ip/port string
   if (inserted || port != p->port || ip != p->ip) {
     p->port = port;
@@ -401,7 +405,7 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_map_t &params, pa
   if (param_numwant == params.end()) {
     numwant = 50;
   } else {
-    numwant = std::min(50l, strtolong(param_numwant->second));
+    numwant = std::min(50l, std::stol(param_numwant->second));
   }
 
   if (stopped_torrent) {
@@ -579,20 +583,20 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_map_t &params, pa
 
   std::string output = "d8:completei";
   output.reserve(350);
-  output += inttostr(tor.seeders.size());
+  output += std::to_string(tor.seeders.size());
   output += "e10:downloadedi";
-  output += inttostr(tor.completed);
+  output += std::to_string(tor.completed);
   output += "e10:incompletei";
-  output += inttostr(tor.leechers.size());
+  output += std::to_string(tor.leechers.size());
   output += "e8:intervali";
-  output += inttostr(m_conf->announce_interval+std::min((size_t)600, tor.seeders.size())); // ensure a more even distribution of announces/second
+  output += std::to_string(m_conf->announce_interval+std::min((size_t)600, tor.seeders.size())); // ensure a more even distribution of announces/second
   output += "e12:min intervali";
-  output += inttostr(m_conf->announce_interval);
+  output += std::to_string(m_conf->announce_interval);
   output += "e5:peers";
   if (peers.length() == 0) {
     output += "0:";
   } else {
-    output += inttostr(peers.length());
+    output += std::to_string(peers.length());
     output += ":";
     output += peers;
   }
@@ -624,15 +628,15 @@ std::string worker::scrape(const std::vector<std::string> &infohashes, params_ma
     }
     torrent *t = &(tor->second);
 
-    output += inttostr(infohash.length());
+    output += std::to_string(infohash.length());
     output += ':';
     output += infohash;
     output += "d8:completei";
-    output += inttostr(t->seeders.size());
+    output += std::to_string(t->seeders.size());
     output += "e10:incompletei";
-    output += inttostr(t->leechers.size());
+    output += std::to_string(t->leechers.size());
     output += "e10:downloadedi";
-    output += inttostr(t->completed);
+    output += std::to_string(t->completed);
     output += "ee";
   }
   output += "ee";
@@ -662,7 +666,7 @@ std::string worker::update(params_map_t &params) {
     auto i = m_torrents_list.find(info_hash);
     if (i == m_torrents_list.end()) {
       t = &m_torrents_list[info_hash];
-      t->id = strtolong(params["id"]);
+      t->id = std::stol(params["id"]);
       t->balance = 0;
       t->completed = 0;
       t->last_selected_seeder = "";
@@ -769,7 +773,7 @@ std::string worker::update(params_map_t &params) {
     }
   } else if (params["action"] == "add_user") {
     std::string passkey = params["passkey"];
-    unsigned int userid = strtolong(params["id"]);
+    unsigned int userid = std::stol(params["id"]);
     auto u = m_users_list.find(passkey);
     if (u == m_users_list.end()) {
       bool protect_ip = params["visible"] == "0";
@@ -840,7 +844,7 @@ std::string worker::update(params_map_t &params) {
     m_whitelist.push_back(new_peer_id);
     std::cout << "Edited whitelist item from " << old_peer_id << " to " << new_peer_id << std::endl;
   } else if (params["action"] == "update_announce_interval") {
-    unsigned int interval = strtolong(params["new_announce_interval"]);
+    unsigned int interval = std::stol(params["new_announce_interval"]);
     m_conf->announce_interval = interval;
     std::cout << "Edited announce interval to " << interval << std::endl;
   } else if (params["action"] == "info_torrent") {
