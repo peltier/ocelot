@@ -154,12 +154,12 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_map_t &params, pa
   }
   bool gzip = false;
 
-  int64_t left = std::max((int64_t)0, std::stoll(params["left"]));
-  int64_t uploaded = std::max((int64_t)0, std::stoll(params["uploaded"]));
-  int64_t downloaded = std::max((int64_t)0, std::stoll(params["downloaded"]));
-  int64_t corrupt = 0;
+  int64_t left = std::max((long long)0, std::stoll(params["left"]));
+  int64_t uploaded = std::max((long long)0, std::stoll(params["uploaded"]));
+  int64_t downloaded = std::max((long long)0, std::stoll(params["downloaded"]));
+  int64_t corrupt;
   if( params.count("corrupt") > 0 ) {
-    std::max((int64_t)0, std::stoll(params["corrupt"]));
+    std::max((long long)0, std::stoll(params["corrupt"]));
   }
 
   int snatched = 0; // This is the value that gets sent to the database on a snatch
