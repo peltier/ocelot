@@ -123,8 +123,6 @@ std::string worker::on_request(std::string &input, std::string &ip) {
     // Let's translate the infohash into something nice
     // info_hash is a url encoded (hex) base 20 number
     std::string info_hash_decoded = hex_decode(params["info_hash"]);
-    
-    std::cout << params["info_hash"] << std::endl;
 
     torrent_list::iterator tor = m_torrents_list.find(info_hash_decoded);
     if (tor == m_torrents_list.end()) {
