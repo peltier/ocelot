@@ -7,7 +7,7 @@
 #include "response.h"
 #include "user.h"
 
-std::string report(params_type &params, user_list &users_list) {
+std::string report(params_map_t &params, user_list &users_list) {
   std::stringstream output;
   std::string action = params["get"];
   if (action == "") {

@@ -5,12 +5,12 @@
 #include <string>
 #include <map>
 #include <sstream>
-#include <list>
 #include <vector>
 #include <set>
 #include <algorithm>
 #include <mutex>
 #include <thread>
+#include <cctype>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -24,6 +24,8 @@
 #include "response.h"
 #include "report.h"
 #include "user.h"
+#include "request.h"
+#include "logger.h"
 
 //---------- Worker - does stuff with input
 worker::worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, mysql * db_obj, site_comm * sc)
@@ -35,144 +37,66 @@ worker::worker(torrent_list &torrents, user_list &users, std::vector<std::string
 bool worker::signal(int sig) {
   if (m_status == OPEN) {
     m_status = CLOSING;
-    std::cout << "closing tracker... press Ctrl-C again to terminate" << std::endl;
+    Logger::info("closing tracker... press Ctrl-C again to terminate");
     return false;
   } else if (m_status == CLOSING) {
-    std::cout << "shutting down uncleanly" << std::endl;
+    Logger::warn("shutting down uncleanly");
     return true;
   } else {
     return false;
   }
 }
-std::string worker::work(std::string &input, std::string &ip) {
-  unsigned int input_length = input.length();
 
-  //---------- Parse request - ugly but fast. Using substr exploded.
-  if (input_length < 60) { // Way too short to be anything useful
+//
+// Process Incoming Request
+//
+std::string worker::on_request(std::string &input, std::string &ip) {
+  // Preliminary check for invalid request
+  if (input.length() < 60) { // Way too short to be anything useful
     return error("GET string too short");
   }
-
-  size_t pos = 5; // skip 'GET /'
-
-  // Get the passkey
-  std::string passkey;
-  passkey.reserve(32);
-  if (input[37] != '/') {
+  
+  // Get the announce url passkey
+  std::string passkey = request::get_pass_key( input );
+  
+  // Check if passkey is valid
+  if( passkey.empty() ) {
     return error("Malformed announce");
   }
+  
+  // Get Action
+  action_t action = request::get_action( input );
 
-  for (; pos < 37; pos++) {
-    passkey.push_back(input[pos]);
+  // Get Request Params
+  params_map_t params = request::get_request_params( input );
+  
+  // Get Info Hashes for SCRAPE
+  std::vector<std::string> infohashes;
+  if( action == SCRAPE ) {
+    infohashes = request::get_info_hashes( input );
   }
-
-  pos = 38;
-
-  // Get the action
-  enum action_t {
-    INVALID = 0, ANNOUNCE, SCRAPE, UPDATE, REPORT
-  };
-  action_t action = INVALID;
-
-  std::unique_lock<std::mutex> lock(stats.mutex);
-  switch (input[pos]) {
-    case 'a':
-      stats.announcements++;
-      action = ANNOUNCE;
-      pos += 8;
-      break;
-    case 's':
-      stats.scrapes++;
-      action = SCRAPE;
-      pos += 6;
-      break;
-    case 'u':
-      action = UPDATE;
-      pos += 6;
-      break;
-    case 'r':
-      action = REPORT;
-      pos += 6;
-      break;
-  }
-  lock.unlock();
-
-  if (input[pos] != '?') {
+  
+  // Get Request Headers
+  params_map_t headers = request::get_request_headers( input );
+  
+  // Check integrity and permissions
+  if ( params.empty() ) {
     // No parameters given. Probably means we're not talking to a torrent client
     return response("Nothing to see here", false, true);
   }
-
+  
+  // Check tracker status
   if (m_status != OPEN && action != UPDATE) {
     return error("The tracker is temporarily unavailable.");
   }
-
+  
+  // Check action integrity
   if (action == INVALID) {
     return error("Invalid action");
   }
-
-  // Parse URL params
-  std::list<std::string> infohashes; // For scrape only
-
-  params_type params;
-  std::string key;
-  std::string value;
-  bool parsing_key = true; // true = key, false = value
-
-  pos++; // Skip the '?'
-  for (; pos < input_length; ++pos) {
-    if (input[pos] == '=') {
-      parsing_key = false;
-    } else if (input[pos] == '&' || input[pos] == ' ') {
-      parsing_key = true;
-      if (action == SCRAPE && key == "info_hash") {
-        infohashes.push_back(value);
-      } else {
-        params[key] = value;
-      }
-      key.clear();
-      value.clear();
-      if (input[pos] == ' ') {
-        break;
-      }
-    } else {
-      if (parsing_key) {
-        key.push_back(input[pos]);
-      } else {
-        value.push_back(input[pos]);
-      }
-    }
-  }
-
-  pos += 10; // skip 'HTTP/1.1' - should probably be +=11, but just in case a client doesn't send \r
-
-  // Parse headers
-  params_type headers;
-  parsing_key = true;
-  bool found_data = false;
-
-  for (; pos < input_length; ++pos) {
-    if (input[pos] == ':') {
-      parsing_key = false;
-      ++pos; // skip space after :
-    } else if (input[pos] == '\n' || input[pos] == '\r') {
-      parsing_key = true;
-
-      if (found_data) {
-        found_data = false; // dodge for getting around \r\n or just \n
-        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-        headers[key] = value;
-        key.clear();
-        value.clear();
-      }
-    } else {
-      found_data = true;
-      if (parsing_key) {
-        key.push_back(input[pos]);
-      } else {
-        value.push_back(input[pos]);
-      }
-    }
-  }
-
+  
+  // Process Actions
+  
   if (action == UPDATE) {
     if (passkey == m_conf->site_password) {
       return update(params);
@@ -222,7 +146,7 @@ std::string worker::work(std::string &input, std::string &ip) {
   }
 }
 
-std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, params_type &headers, std::string &ip) {
+std::string worker::announce(torrent &tor, user_ptr &u, params_map_t &params, params_map_t &headers, std::string &ip) {
   m_cur_time = time(NULL);
 
   if (params["compact"] != "1") {
@@ -230,10 +154,13 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
   }
   bool gzip = false;
 
-  int64_t left = std::max((int64_t)0, strtolonglong(params["left"]));
-  int64_t uploaded = std::max((int64_t)0, strtolonglong(params["uploaded"]));
-  int64_t downloaded = std::max((int64_t)0, strtolonglong(params["downloaded"]));
-  int64_t corrupt = std::max((int64_t)0, strtolonglong(params["corrupt"]));
+  int64_t left = std::max((long long)0, std::stoll(params["left"]));
+  int64_t uploaded = std::max((long long)0, std::stoll(params["uploaded"]));
+  int64_t downloaded = std::max((long long)0, std::stoll(params["downloaded"]));
+  int64_t corrupt;
+  if( params.count("corrupt") > 0 ) {
+    std::max((long long)0, std::stoll(params["corrupt"]));
+  }
 
   int snatched = 0; // This is the value that gets sent to the database on a snatch
   int active = 1; // This is the value that marks a peer as active/inactive in the database
@@ -246,7 +173,7 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
   bool invalid_ip = false;
   bool inc_l = false, inc_s = false, dec_l = false, dec_s = false;
 
-  params_type::const_iterator peer_id_iterator = params.find("peer_id");
+  auto peer_id_iterator = params.find("peer_id");
   if (peer_id_iterator == params.end()) {
     return error("No peer ID");
   }
@@ -401,7 +328,7 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
   }
   p->left = left;
 
-  params_type::const_iterator param_ip = params.find("ip");
+  auto param_ip = params.find("ip");
   if (param_ip != params.end()) {
     ip = param_ip->second;
   } else if ((param_ip = params.find("ipv4")) != params.end()) {
@@ -418,7 +345,7 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
     }
   }
 
-  unsigned int port = strtolong(params["port"]);
+  unsigned int port = std::stol(params["port"]);
   // Generate compact ip/port string
   if (inserted || port != p->port || ip != p->ip) {
     p->port = port;
@@ -474,11 +401,11 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
 
   // Select peers!
   unsigned int numwant;
-  params_type::const_iterator param_numwant = params.find("numwant");
+  auto param_numwant = params.find("numwant");
   if (param_numwant == params.end()) {
     numwant = 50;
   } else {
-    numwant = std::min(50l, strtolong(param_numwant->second));
+    numwant = std::min(50l, std::stol(param_numwant->second));
   }
 
   if (stopped_torrent) {
@@ -656,20 +583,20 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
 
   std::string output = "d8:completei";
   output.reserve(350);
-  output += inttostr(tor.seeders.size());
+  output += std::to_string(tor.seeders.size());
   output += "e10:downloadedi";
-  output += inttostr(tor.completed);
+  output += std::to_string(tor.completed);
   output += "e10:incompletei";
-  output += inttostr(tor.leechers.size());
+  output += std::to_string(tor.leechers.size());
   output += "e8:intervali";
-  output += inttostr(m_conf->announce_interval+std::min((size_t)600, tor.seeders.size())); // ensure a more even distribution of announces/second
+  output += std::to_string(m_conf->announce_interval+std::min((size_t)600, tor.seeders.size())); // ensure a more even distribution of announces/second
   output += "e12:min intervali";
-  output += inttostr(m_conf->announce_interval);
+  output += std::to_string(m_conf->announce_interval);
   output += "e5:peers";
   if (peers.length() == 0) {
     output += "0:";
   } else {
-    output += inttostr(peers.length());
+    output += std::to_string(peers.length());
     output += ":";
     output += peers;
   }
@@ -688,11 +615,11 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
   return response(output, gzip, false);
 }
 
-std::string worker::scrape(const std::list<std::string> &infohashes, params_type &headers) {
+std::string worker::scrape(const std::vector<std::string> &infohashes, params_map_t &headers) {
   bool gzip = false;
   std::string output = "d5:filesd";
-  for (std::list<std::string>::const_iterator i = infohashes.begin(); i != infohashes.end(); ++i) {
-    std::string infohash = *i;
+  for (auto infohash : infohashes) {
+  
     infohash = hex_decode(infohash);
 
     torrent_list::iterator tor = m_torrents_list.find(infohash);
@@ -701,15 +628,15 @@ std::string worker::scrape(const std::list<std::string> &infohashes, params_type
     }
     torrent *t = &(tor->second);
 
-    output += inttostr(infohash.length());
+    output += std::to_string(infohash.length());
     output += ':';
     output += infohash;
     output += "d8:completei";
-    output += inttostr(t->seeders.size());
+    output += std::to_string(t->seeders.size());
     output += "e10:incompletei";
-    output += inttostr(t->leechers.size());
+    output += std::to_string(t->leechers.size());
     output += "e10:downloadedi";
-    output += inttostr(t->completed);
+    output += std::to_string(t->completed);
     output += "ee";
   }
   output += "ee";
@@ -720,7 +647,7 @@ std::string worker::scrape(const std::list<std::string> &infohashes, params_type
 }
 
 //TODO: Restrict to local IPs
-std::string worker::update(params_type &params) {
+std::string worker::update(params_map_t &params) {
   if (params["action"] == "change_passkey") {
     std::string oldpasskey = params["oldpasskey"];
     std::string newpasskey = params["newpasskey"];
@@ -739,7 +666,7 @@ std::string worker::update(params_type &params) {
     auto i = m_torrents_list.find(info_hash);
     if (i == m_torrents_list.end()) {
       t = &m_torrents_list[info_hash];
-      t->id = strtolong(params["id"]);
+      t->id = std::stol(params["id"]);
       t->balance = 0;
       t->completed = 0;
       t->last_selected_seeder = "";
@@ -846,7 +773,7 @@ std::string worker::update(params_type &params) {
     }
   } else if (params["action"] == "add_user") {
     std::string passkey = params["passkey"];
-    unsigned int userid = strtolong(params["id"]);
+    unsigned int userid = std::stol(params["id"]);
     auto u = m_users_list.find(passkey);
     if (u == m_users_list.end()) {
       bool protect_ip = params["visible"] == "0";
@@ -917,7 +844,7 @@ std::string worker::update(params_type &params) {
     m_whitelist.push_back(new_peer_id);
     std::cout << "Edited whitelist item from " << old_peer_id << " to " << new_peer_id << std::endl;
   } else if (params["action"] == "update_announce_interval") {
-    unsigned int interval = strtolong(params["new_announce_interval"]);
+    unsigned int interval = std::stol(params["new_announce_interval"]);
     m_conf->announce_interval = interval;
     std::cout << "Edited announce interval to " << interval << std::endl;
   } else if (params["action"] == "info_torrent") {

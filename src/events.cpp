@@ -5,6 +5,7 @@
 #include "events.h"
 #include "schedule.h"
 #include "response.h"
+#include "logger.h"
 #include <cerrno>
 #include <mutex>
 
@@ -42,21 +43,21 @@ connection_mother::connection_mother(worker * worker_obj, config * config_obj, m
 
   // Bind
   if (bind(m_listen_socket, (sockaddr *) &m_address, sizeof(m_address)) == -1) {
-    std::cout << "Bind failed " << errno << std::endl;
+    Logger::error("Bind failed " +  std::to_string( errno ) );
   }
 
   // Listen
   if (listen(m_listen_socket, m_conf->max_connections) == -1) {
-    std::cout << "Listen failed" << std::endl;
+    Logger::error("Listen failed");
   }
 
   // Set non-blocking
   int flags = fcntl(m_listen_socket, F_GETFL);
   if (flags == -1) {
-    std::cout << "Could not get socket flags" << std::endl;
+    Logger::error("Could not get socket flags");
   }
   if (fcntl(m_listen_socket, F_SETFL, flags | O_NONBLOCK) == -1) {
-    std::cout << "Could not set non-blocking" << std::endl;
+    Logger::error("Could not set non-blocking");
   }
 
   // Create libev timer
@@ -66,7 +67,7 @@ connection_mother::connection_mother(worker * worker_obj, config * config_obj, m
   m_schedule_event.set(m_conf->schedule_interval, m_conf->schedule_interval); // After interval, every interval
   m_schedule_event.start();
 
-  std::cout << "Sockets up, starting event loop!" << std::endl;
+  Logger::info("Sockets up, starting event loop!");
   ev_loop(ev_default_loop(0), 0);
 }
 
@@ -169,7 +170,7 @@ void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
       std::string ip_str = ip;
 
       //--- CALL WORKER
-      m_response = m_worker->work(m_request, ip_str);
+      m_response = m_worker->on_request(m_request, ip_str);
     }
 
     // Find out when the socket is writeable.

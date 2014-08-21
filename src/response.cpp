@@ -1,9 +1,11 @@
-#include "response.h"
-#include "misc_functions.h"
 #include <sstream>
+#include <cctype>
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
+
+#include "response.h"
+#include "misc_functions.h"
 
 std::string response(const std::string &body, bool gzip, bool html) {
   const std::string head = response_head(gzip, html);
@@ -41,9 +43,9 @@ std::string response_head(bool gzip, bool html) {
 }
 
 std::string error(const std::string &err) {
-  return response("d14:failure reason" + inttostr(err.length()) + ':' + err + "12:min intervali5400e8:intervali5400ee", false, false);
+  return response("d14:failure reason" + std::to_string( err.length() ) + ':' + err + "12:min intervali5400e8:intervali5400ee", false, false);
 }
 
 std::string warning(const std::string &msg) {
-  return "15:warning message" + inttostr(msg.length()) + ':' + msg;
+  return "15:warning message" + std::to_string( msg.length() ) + ':' + msg;
 }

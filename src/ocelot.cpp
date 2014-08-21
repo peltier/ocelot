@@ -5,13 +5,14 @@
 #include "events.h"
 #include "schedule.h"
 #include "site_comm.h"
+#include "logger.h"
 
 static connection_mother *mother;
 static worker *work;
 struct stats stats;
 
 static void sig_handler(int sig) {
-  std::cout << "Caught SIGINT/SIGTERM" << std::endl;
+  Logger::warn("Caught SIGINT/SIGTERM");
   if (work->signal(sig)) {
     exit(0);
   }
@@ -20,6 +21,8 @@ static void sig_handler(int sig) {
 int main(int argc, char **argv) {
   // we don't use printf so make cout/cerr a little bit faster
   std::ios_base::sync_with_stdio(false);
+  
+  Logger::set_log_level( LogLevel::INFO );
 
   config conf;
 
@@ -35,7 +38,7 @@ int main(int argc, char **argv) {
 
   mysql db(conf.mysql_db, conf.mysql_host, conf.mysql_username, conf.mysql_password);
   if (!db.connected()) {
-    std::cout << "Exiting" << std::endl;
+    Logger::fail("Cannot connect to database!");
     return 0;
   }
   db.m_verbose_flush = verbose;
@@ -45,18 +48,21 @@ int main(int argc, char **argv) {
 
   std::vector<std::string> whitelist;
   db.load_whitelist(whitelist);
-  std::cout << "Loaded " << whitelist.size() << " clients into the whitelist" << std::endl;
+  
+  Logger::info("Loaded " + std::to_string( whitelist.size() ) + " clients into the whitelist");
+  
   if (whitelist.size() == 0) {
-    std::cout << "Assuming no whitelist desired, disabling" << std::endl;
+    Logger::info("Assuming no whitelist desired, disabling");
   }
 
   user_list users_list;
   db.load_users(users_list);
-  std::cout << "Loaded " << users_list.size() << " users" << std::endl;
+  
+  Logger::info("Loaded " + std::to_string( users_list.size() ) + " users");
 
   torrent_list torrents_list;
   db.load_torrents(torrents_list);
-  std::cout << "Loaded " << torrents_list.size() << " torrents" << std::endl;
+  Logger::info("Loaded " + std::to_string( torrents_list.size() ) + " torrents");
 
   db.load_tokens(torrents_list);
 

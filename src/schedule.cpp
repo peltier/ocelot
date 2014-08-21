@@ -4,6 +4,7 @@
 #include "worker.h"
 #include "events.h"
 #include "schedule.h"
+#include "logger.h"
 
 
 schedule::schedule(worker* worker_obj, config* conf_obj, mysql * db_obj, site_comm * sc_obj)
@@ -18,13 +19,16 @@ schedule::schedule(worker* worker_obj, config* conf_obj, mysql * db_obj, site_co
 void schedule::handle(ev::timer &watcher, int events_flags) {
   stats.connection_rate = (stats.opened_connections - m_last_opened_connections) / m_conf->schedule_interval;
   if (m_counter % 20 == 0) {
-    std::cout << "Schedule run #" << m_counter << " - open: " << stats.open_connections << ", opened: "
-    << stats.opened_connections << ", speed: "
-    << stats.connection_rate << "/s" << std::endl;
+    
+    // Yuk! Can we use an ostream for logging?
+    Logger::info( "Schedule run #" + std::to_string(m_counter) +
+                  " - open: " + std::to_string(stats.open_connections) +
+                  ", opened: " + std::to_string(stats.opened_connections) +
+                  ", speed: " + std::to_string(stats.connection_rate) + "/s");
   }
 
   if (m_worker->get_status() == CLOSING && m_db->all_clear() && m_site_comm->all_clear()) {
-    std::cout << "all clear, shutting down" << std::endl;
+    Logger::info("all clear, shutting down");
     exit(0);
   }
 
