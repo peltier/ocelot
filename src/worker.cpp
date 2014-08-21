@@ -5,7 +5,6 @@
 #include <string>
 #include <map>
 #include <sstream>
-#include <list>
 #include <vector>
 #include <set>
 #include <algorithm>
@@ -24,6 +23,7 @@
 #include "response.h"
 #include "report.h"
 #include "user.h"
+#include "request.h"
 
 //---------- Worker - does stuff with input
 worker::worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, mysql * db_obj, site_comm * sc)
@@ -44,135 +44,57 @@ bool worker::signal(int sig) {
     return false;
   }
 }
-std::string worker::work(std::string &input, std::string &ip) {
-  unsigned int input_length = input.length();
 
-  //---------- Parse request - ugly but fast. Using substr exploded.
-  if (input_length < 60) { // Way too short to be anything useful
+//
+// Process Incoming Request
+//
+std::string worker::on_request(std::string &input, std::string &ip) {
+  // Preliminary check for invalid request
+  if (input.length() < 60) { // Way too short to be anything useful
     return error("GET string too short");
   }
-
-  size_t pos = 5; // skip 'GET /'
-
-  // Get the passkey
-  std::string passkey;
-  passkey.reserve(32);
-  if (input[37] != '/') {
+  
+  // Get the announce url passkey
+  std::string passkey = request::get_pass_key( input );
+  
+  // Check if passkey is valid
+  if( passkey.empty() ) {
     return error("Malformed announce");
   }
+  
+  // Get Action
+  action_t action = request::get_action( input );
 
-  for (; pos < 37; pos++) {
-    passkey.push_back(input[pos]);
+  // Get Request Params
+  params_map_t params = request::get_request_params( input );
+  
+  // Get Info Hashes for SCRAPE
+  std::vector<std::string> infohashes;
+  if( action == SCRAPE ) {
+    infohashes = request::get_info_hashes( input );
   }
-
-  pos = 38;
-
-  // Get the action
-  enum action_t {
-    INVALID = 0, ANNOUNCE, SCRAPE, UPDATE, REPORT
-  };
-  action_t action = INVALID;
-
-  std::unique_lock<std::mutex> lock(stats.mutex);
-  switch (input[pos]) {
-    case 'a':
-      stats.announcements++;
-      action = ANNOUNCE;
-      pos += 8;
-      break;
-    case 's':
-      stats.scrapes++;
-      action = SCRAPE;
-      pos += 6;
-      break;
-    case 'u':
-      action = UPDATE;
-      pos += 6;
-      break;
-    case 'r':
-      action = REPORT;
-      pos += 6;
-      break;
-  }
-  lock.unlock();
-
-  if (input[pos] != '?') {
+  
+  // Get Request Headers
+  params_map_t headers = request::get_request_headers( input );
+  
+  // Check integrity and permissions
+  if ( params.empty() ) {
     // No parameters given. Probably means we're not talking to a torrent client
     return response("Nothing to see here", false, true);
   }
-
+  
+  // Check tracker status
   if (m_status != OPEN && action != UPDATE) {
     return error("The tracker is temporarily unavailable.");
   }
-
+  
+  // Check action integrity
   if (action == INVALID) {
     return error("Invalid action");
   }
-
-  // Parse URL params
-  std::list<std::string> infohashes; // For scrape only
-
-  params_type params;
-  std::string key;
-  std::string value;
-  bool parsing_key = true; // true = key, false = value
-
-  pos++; // Skip the '?'
-  for (; pos < input_length; ++pos) {
-    if (input[pos] == '=') {
-      parsing_key = false;
-    } else if (input[pos] == '&' || input[pos] == ' ') {
-      parsing_key = true;
-      if (action == SCRAPE && key == "info_hash") {
-        infohashes.push_back(value);
-      } else {
-        params[key] = value;
-      }
-      key.clear();
-      value.clear();
-      if (input[pos] == ' ') {
-        break;
-      }
-    } else {
-      if (parsing_key) {
-        key.push_back(input[pos]);
-      } else {
-        value.push_back(input[pos]);
-      }
-    }
-  }
-
-  pos += 10; // skip 'HTTP/1.1' - should probably be +=11, but just in case a client doesn't send \r
-
-  // Parse headers
-  params_type headers;
-  parsing_key = true;
-  bool found_data = false;
-
-  for (; pos < input_length; ++pos) {
-    if (input[pos] == ':') {
-      parsing_key = false;
-      ++pos; // skip space after :
-    } else if (input[pos] == '\n' || input[pos] == '\r') {
-      parsing_key = true;
-
-      if (found_data) {
-        found_data = false; // dodge for getting around \r\n or just \n
-        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-        headers[key] = value;
-        key.clear();
-        value.clear();
-      }
-    } else {
-      found_data = true;
-      if (parsing_key) {
-        key.push_back(input[pos]);
-      } else {
-        value.push_back(input[pos]);
-      }
-    }
-  }
-
+  
+  // Process Actions
+  
   if (action == UPDATE) {
     if (passkey == m_conf->site_password) {
       return update(params);
@@ -201,6 +123,8 @@ std::string worker::work(std::string &input, std::string &ip) {
     // Let's translate the infohash into something nice
     // info_hash is a url encoded (hex) base 20 number
     std::string info_hash_decoded = hex_decode(params["info_hash"]);
+    
+    std::cout << params["info_hash"] << std::endl;
 
     torrent_list::iterator tor = m_torrents_list.find(info_hash_decoded);
     if (tor == m_torrents_list.end()) {
@@ -222,7 +146,7 @@ std::string worker::work(std::string &input, std::string &ip) {
   }
 }
 
-std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, params_type &headers, std::string &ip) {
+std::string worker::announce(torrent &tor, user_ptr &u, params_map_t &params, params_map_t &headers, std::string &ip) {
   m_cur_time = time(NULL);
 
   if (params["compact"] != "1") {
@@ -246,7 +170,7 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
   bool invalid_ip = false;
   bool inc_l = false, inc_s = false, dec_l = false, dec_s = false;
 
-  params_type::const_iterator peer_id_iterator = params.find("peer_id");
+  auto peer_id_iterator = params.find("peer_id");
   if (peer_id_iterator == params.end()) {
     return error("No peer ID");
   }
@@ -401,7 +325,7 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
   }
   p->left = left;
 
-  params_type::const_iterator param_ip = params.find("ip");
+  auto param_ip = params.find("ip");
   if (param_ip != params.end()) {
     ip = param_ip->second;
   } else if ((param_ip = params.find("ipv4")) != params.end()) {
@@ -474,7 +398,7 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
 
   // Select peers!
   unsigned int numwant;
-  params_type::const_iterator param_numwant = params.find("numwant");
+  auto param_numwant = params.find("numwant");
   if (param_numwant == params.end()) {
     numwant = 50;
   } else {
@@ -688,11 +612,11 @@ std::string worker::announce(torrent &tor, user_ptr &u, params_type &params, par
   return response(output, gzip, false);
 }
 
-std::string worker::scrape(const std::list<std::string> &infohashes, params_type &headers) {
+std::string worker::scrape(const std::vector<std::string> &infohashes, params_map_t &headers) {
   bool gzip = false;
   std::string output = "d5:filesd";
-  for (std::list<std::string>::const_iterator i = infohashes.begin(); i != infohashes.end(); ++i) {
-    std::string infohash = *i;
+  for (auto infohash : infohashes) {
+  
     infohash = hex_decode(infohash);
 
     torrent_list::iterator tor = m_torrents_list.find(infohash);
@@ -720,7 +644,7 @@ std::string worker::scrape(const std::list<std::string> &infohashes, params_type
 }
 
 //TODO: Restrict to local IPs
-std::string worker::update(params_type &params) {
+std::string worker::update(params_map_t &params) {
   if (params["action"] == "change_passkey") {
     std::string oldpasskey = params["oldpasskey"];
     std::string newpasskey = params["newpasskey"];

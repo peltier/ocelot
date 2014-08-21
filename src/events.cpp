@@ -169,7 +169,7 @@ void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
       std::string ip_str = ip;
 
       //--- CALL WORKER
-      m_response = m_worker->work(m_request, ip_str);
+      m_response = m_worker->on_request(m_request, ip_str);
     }
 
     // Find out when the socket is writeable.

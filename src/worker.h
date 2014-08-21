@@ -3,7 +3,6 @@
 
 #include <string>
 #include <vector>
-#include <list>
 #include <unordered_map>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -15,13 +14,18 @@
 
 enum tracker_status { OPEN, PAUSED, CLOSING }; // tracker status
 
+enum action_t {
+  INVALID = 0, ANNOUNCE, SCRAPE, UPDATE, REPORT
+};
+
 class worker {
   public:
     worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, mysql * db_obj, site_comm * sc);
-    std::string work(std::string &input, std::string &ip);
-    std::string announce(torrent &tor, user_ptr &u, params_type &params, params_type &headers, std::string &ip);
-    std::string scrape(const std::list<std::string> &infohashes, params_type &headers);
-    std::string update(params_type &params);
+  
+    std::string on_request(std::string &input, std::string &ip);
+    std::string announce(torrent &tor, user_ptr &u, params_map_t &params, params_map_t &headers, std::string &ip);
+    std::string scrape(const std::vector<std::string> &infohashes, params_map_t &headers);
+    std::string update(params_map_t &params);
 
     bool signal(int sig);
 

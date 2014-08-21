@@ -77,7 +77,7 @@ typedef struct {
 
 typedef std::unordered_map<std::string, torrent> torrent_list;
 typedef std::unordered_map<std::string, user_ptr> user_list;
-typedef std::unordered_map<std::string, std::string> params_type;
+typedef std::unordered_map<std::string, std::string> params_map_t;
 
 struct stats {
   std::mutex mutex;
