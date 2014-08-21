@@ -160,7 +160,7 @@ namespace request {
     int position = 0;
     
     // This is assuming you can have multiple info_hashes in one SCRAP request
-    while( position < input.size() ) {
+    while( position < input.length() ) {
       
       // Find the key index
       auto index_start = input.find("info_hash", position);
