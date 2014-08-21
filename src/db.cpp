@@ -1,7 +1,3 @@
-#include "ocelot.h"
-#include "db.h"
-#include "user.h"
-#include "misc_functions.h"
 #include <string>
 #include <iostream>
 #include <queue>
@@ -9,6 +5,12 @@
 #include <mutex>
 #include <thread>
 #include <chrono>
+
+#include "ocelot.h"
+#include "db.h"
+#include "user.h"
+#include "misc_functions.h"
+#include "logger.h"
 
 #define DB_LOCK_TIMEOUT 50
 
@@ -23,11 +25,11 @@ mysql::mysql(std::string mysql_m_db, std::string mysql_host, std::string usernam
     return;
   }
 
-  std::cout << "Connected to MySQL" << std::endl;
-  std::cout << "Clearing xbt_files_users and resetting peer counts...";
+  Logger::info("Connected to MySQL");
+  Logger::info("Clearing xbt_files_users and resetting peer counts...");
   std::cout.flush();
   clear_peer_data();
-  std::cout << "done" << std::endl;
+  Logger::info("done");
 }
 
 bool mysql::connected() {

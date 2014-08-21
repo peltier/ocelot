@@ -24,6 +24,7 @@
 #include "report.h"
 #include "user.h"
 #include "request.h"
+#include "logger.h"
 
 //---------- Worker - does stuff with input
 worker::worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, mysql * db_obj, site_comm * sc)
@@ -35,10 +36,10 @@ worker::worker(torrent_list &torrents, user_list &users, std::vector<std::string
 bool worker::signal(int sig) {
   if (m_status == OPEN) {
     m_status = CLOSING;
-    std::cout << "closing tracker... press Ctrl-C again to terminate" << std::endl;
+    Logger::info("closing tracker... press Ctrl-C again to terminate");
     return false;
   } else if (m_status == CLOSING) {
-    std::cout << "shutting down uncleanly" << std::endl;
+    Logger::warn("shutting down uncleanly");
     return true;
   } else {
     return false;
