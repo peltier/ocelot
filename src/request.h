@@ -1,6 +1,8 @@
 #ifndef ocelot_request_h
 #define ocelot_request_h
 
+#include <algorithm>
+
 #include "ocelot.h"
 
 enum action_t {
