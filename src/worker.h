@@ -11,18 +11,15 @@
 #include <mutex>
 #include "site_comm.h"
 #include "ocelot.h"
+#include "request.h"
 
 enum tracker_status { OPEN, PAUSED, CLOSING }; // tracker status
-
-enum action_t {
-  INVALID = 0, ANNOUNCE, SCRAPE, UPDATE, REPORT
-};
 
 class worker {
   public:
     worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, mysql * db_obj, site_comm * sc);
   
-    std::string on_request(std::string &input, std::string &ip);
+    std::string on_request(const Request &request);
     std::string announce(torrent &tor, user_ptr &u, params_map_t &params, params_map_t &headers, std::string &ip);
     std::string scrape(const std::vector<std::string> &infohashes, params_map_t &headers);
     std::string update(params_map_t &params);

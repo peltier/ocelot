@@ -24,7 +24,6 @@
 #include "response.h"
 #include "report.h"
 #include "user.h"
-#include "request.h"
 #include "logger.h"
 
 //---------- Worker - does stuff with input
@@ -50,14 +49,14 @@ bool worker::signal(int sig) {
 //
 // Process Incoming Request
 //
-std::string worker::on_request(std::string &input, std::string &ip) {
+std::string worker::on_request( const Request &request ) {
   // Preliminary check for invalid request
-  if (input.length() < 60) { // Way too short to be anything useful
+  if ( !request.is_valid() ) {
     return error("GET string too short");
   }
   
   // Get the announce url passkey
-  std::string passkey = request::get_pass_key( input );
+  std::string passkey = request.get_pass_key();
   
   // Check if passkey is valid
   if( passkey.empty() ) {
@@ -65,19 +64,19 @@ std::string worker::on_request(std::string &input, std::string &ip) {
   }
   
   // Get Action
-  action_t action = request::get_action( input );
+  action_t action = request.get_action();
 
   // Get Request Params
-  params_map_t params = request::get_request_params( input );
+  params_map_t params = request.get_request_params();
   
   // Get Info Hashes for SCRAPE
   std::vector<std::string> infohashes;
   if( action == SCRAPE ) {
-    infohashes = request::get_info_hashes( input );
+    infohashes = request.get_info_hashes();
   }
   
   // Get Request Headers
-  params_map_t headers = request::get_request_headers( input );
+  params_map_t headers = request.get_request_headers();
   
   // Check integrity and permissions
   if ( params.empty() ) {
@@ -140,7 +139,8 @@ std::string worker::on_request(std::string &input, std::string &ip) {
         return error("Unregistered torrent");
       }
     }
-    return announce(tor->second, user_it->second, params, headers, ip);
+    std::string ip = request.get_ip_address();
+    return announce(tor->second, user_it->second, params, headers, ip );
   } else {
     return scrape(infohashes, headers);
   }

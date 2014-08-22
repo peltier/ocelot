@@ -1,3 +1,6 @@
+#include <cerrno>
+#include <mutex>
+
 #include "ocelot.h"
 #include "config.h"
 #include "db.h"
@@ -6,8 +9,6 @@
 #include "schedule.h"
 #include "response.h"
 #include "logger.h"
-#include <cerrno>
-#include <mutex>
 
 // Define the connection mother (first half) and connection middlemen (second half)
 
@@ -170,7 +171,7 @@ void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
       std::string ip_str = ip;
 
       //--- CALL WORKER
-      m_response = m_worker->on_request(m_request, ip_str);
+      m_response = m_worker->on_request( Request(m_request, ip_str) );
     }
 
     // Find out when the socket is writeable.
