@@ -18,7 +18,8 @@ class UpdateController {
     
   private:
     Request m_request;
-
+  
+    std::string before__authenticate();
 };
 
 #endif /* defined(__ocelot__update_controller__) */

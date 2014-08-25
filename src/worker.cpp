@@ -19,6 +19,7 @@
 #include "scrape_controller.h"
 #include "announce_controller.h"
 #include "update_controller.h"
+#include "report_controller.h"
 #include "config.h"
 #include "db.h"
 #include "worker.h"
@@ -39,6 +40,7 @@ worker::worker(torrent_list &torrents, user_list &users, std::vector<std::string
   m_status = OPEN;
   m_db = mysql::get_instance();
 }
+
 bool worker::signal(int sig) {
   if (m_status == OPEN) {
     m_status = CLOSING;
@@ -75,15 +77,6 @@ std::string worker::on_request( const Request &request ) {
   // Get Request Params
   params_map_t params = request.get_params();
   
-  // Get Info Hashes for SCRAPE
-  std::vector<std::string> infohashes;
-  if( action == SCRAPE ) {
-    infohashes = request.get_info_hashes();
-  }
-  
-  // Get Request Headers
-  params_map_t headers = request.get_headers();
-  
   // Check integrity and permissions
   if ( params.empty() ) {
     // No parameters given. Probably means we're not talking to a torrent client
@@ -95,40 +88,19 @@ std::string worker::on_request( const Request &request ) {
     return error("The tracker is temporarily unavailable.");
   }
   
-  // Check action integrity
-  if (action == INVALID) {
-    return error("Invalid action");
-  }
-  
-  // Process Actions
-  
-  if (action == UPDATE) {
-    if (passkey == m_conf->site_password) {
+  switch (action) {
+    case ANNOUNCE:
+      return AnnounceController::on_request( request );
+    case SCRAPE:
+      return ScrapeController::on_request( request );
+    case UPDATE:
       return UpdateController::on_request( request );
-    } else {
-      return error("Authentication failure");
-    }
-  }
-
-  if (action == REPORT) {
-    if (passkey == m_conf->report_password) {
-      return report(params, m_users_list);
-    } else {
-      return error("Authentication failure");
-    }
-  }
-
-  // Either a scrape or an announce
-
-  auto user_it = m_users_list.find(passkey);
-  if (user_it == m_users_list.end()) {
-    return error("Passkey not found");
-  }
-
-  if (action == ANNOUNCE) {
-    return AnnounceController::on_request( request );
-  } else {
-    return ScrapeController::on_request( request );
+    case REPORT:
+      return ReportController::on_request( request );
+    case INVALID:
+      return error("Invalid action");
+    default:
+      return error("Bad Request");
   }
 }
 

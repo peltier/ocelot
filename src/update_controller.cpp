@@ -2,8 +2,21 @@
 #include "logger.h"
 #include "worker.h"
 
+std::string UpdateController::before__authenticate() {
+  if ( m_request.get_passkey() == config().site_password) {
+    return error("Authentication failure");
+  }
+  
+  return "";
+}
+
 //TODO: Restrict to local IPs
 std::string UpdateController::get_response() {
+
+  // Authenticate
+  auto auth_error = before__authenticate();
+  if( !auth_error.empty() ) return auth_error;
+
 
   auto params = m_request.get_params();
   
@@ -232,6 +245,7 @@ std::string UpdateController::get_response() {
       std::cout << "Failed to find torrent " << info_hash_hex << std::endl;
     }
   }
+  
   return response("success", false, false);
   
 }
