@@ -12,6 +12,7 @@
 #include "site_comm.h"
 #include "ocelot.h"
 #include "request.h"
+#include "db.h"
 
 enum tracker_status { OPEN, PAUSED, CLOSING }; // tracker status
 
@@ -20,7 +21,6 @@ class worker {
     worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, site_comm * sc);
   
     std::string on_request(const Request &request);
-    std::string update(params_map_t &params);
 
     bool signal(int sig);
 
@@ -29,6 +29,7 @@ class worker {
     void start_reaper();
   
     static std::mutex m_ustats_lock;
+    static std::mutex m_del_reasons_lock;
 
   private:
     torrent_list m_torrents_list;
@@ -40,8 +41,6 @@ class worker {
     tracker_status m_status;
     time_t m_cur_time;
     site_comm * m_site_comm;
-
-    std::mutex m_del_reasons_lock;
 
     void do_start_reaper();
     void reap_peers();

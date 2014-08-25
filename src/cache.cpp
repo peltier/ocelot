@@ -1,11 +1,3 @@
-//
-//  cache.cpp
-//  ocelot
-//
-//  Created by Garrett Thornburg on 8/24/14.
-//
-//
-
 #include "cache.h"
 
 // Deletion Cache
