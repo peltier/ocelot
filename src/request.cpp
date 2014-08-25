@@ -31,7 +31,7 @@ action_t Request::get_action() const {
 //
 // Get the pass key from request string
 //
-std::string Request::get_pass_key() const {
+std::string Request::get_passkey() const {
   // Get the passkey
   std::string passkey;
   passkey.reserve(32);
@@ -49,7 +49,7 @@ std::string Request::get_pass_key() const {
 //
 // Get all the request params from a request string
 //
-params_map_t Request::get_request_params() const {
+params_map_t Request::get_params() const {
   params_map_t request_params;
   
   // Get the beginning of the params list
@@ -107,7 +107,7 @@ params_map_t Request::get_request_params() const {
 }
 
 // Extracted from worker::worker. Not changed
-params_map_t Request::get_request_headers() const {
+params_map_t Request::get_headers() const {
   
   auto pos = m_input.find( "HTTP/1.1" );
   

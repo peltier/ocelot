@@ -13,10 +13,16 @@
 
 using boost::asio::ip::tcp;
 
-site_comm::site_comm(config &config)
+site_comm * site_comm::m_site_comm_instance = nullptr;
+
+site_comm::site_comm(config config)
   : m_conf(config), m_t_active(false) {}
 
-site_comm::~site_comm() {}
+site_comm::~site_comm() {
+  if(m_site_comm_instance) {
+    delete m_site_comm_instance;
+  }
+}
 
 bool site_comm::all_clear() {
   return (m_token_queue.size() == 0);

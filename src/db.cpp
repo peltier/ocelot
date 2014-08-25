@@ -14,6 +14,8 @@
 
 #define DB_LOCK_TIMEOUT 50
 
+mysql * mysql::m_mysql_instance = nullptr;
+
 mysql::mysql(std::string mysql_m_db, std::string mysql_host, std::string username, std::string password) :
   m_db(mysql_m_db), m_server(mysql_host), m_db_user(username), m_password(password),
   m_u_active(false), m_t_active(false), m_p_active(false), m_s_active(false), m_tok_active(false)

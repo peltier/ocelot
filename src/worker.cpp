@@ -16,22 +16,25 @@
 #include <arpa/inet.h>
 
 #include "ocelot.h"
+#include "scrape_controller.h"
+#include "announce_controller.h"
 #include "config.h"
 #include "db.h"
 #include "worker.h"
-#include "misc_functions.h"
 #include "site_comm.h"
-#include "response.h"
 #include "report.h"
 #include "user.h"
 #include "logger.h"
 
+std::mutex worker::m_ustats_lock;
+
 //---------- Worker - does stuff with input
-worker::worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, mysql * db_obj, site_comm * sc)
+worker::worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, site_comm * sc)
   : m_torrents_list(torrents), m_users_list(users), m_whitelist(_whitelist),
-  m_conf(conf_obj), m_db(db_obj), m_site_comm(sc)
+    m_conf(conf_obj), m_site_comm(sc)
 {
   m_status = OPEN;
+  m_db = mysql::get_instance();
 }
 bool worker::signal(int sig) {
   if (m_status == OPEN) {
@@ -56,7 +59,7 @@ std::string worker::on_request( const Request &request ) {
   }
   
   // Get the announce url passkey
-  std::string passkey = request.get_pass_key();
+  std::string passkey = request.get_passkey();
   
   // Check if passkey is valid
   if( passkey.empty() ) {
@@ -67,7 +70,7 @@ std::string worker::on_request( const Request &request ) {
   action_t action = request.get_action();
 
   // Get Request Params
-  params_map_t params = request.get_request_params();
+  params_map_t params = request.get_params();
   
   // Get Info Hashes for SCRAPE
   std::vector<std::string> infohashes;
@@ -76,7 +79,7 @@ std::string worker::on_request( const Request &request ) {
   }
   
   // Get Request Headers
-  params_map_t headers = request.get_request_headers();
+  params_map_t headers = request.get_headers();
   
   // Check integrity and permissions
   if ( params.empty() ) {
@@ -120,530 +123,10 @@ std::string worker::on_request( const Request &request ) {
   }
 
   if (action == ANNOUNCE) {
-    std::unique_lock<std::mutex> tl_lock(m_db->m_torrent_list_mutex);
-    // Let's translate the infohash into something nice
-    // info_hash is a url encoded (hex) base 20 number
-    std::string info_hash_decoded = hex_decode(params["info_hash"]);
-
-    torrent_list::iterator tor = m_torrents_list.find(info_hash_decoded);
-    if (tor == m_torrents_list.end()) {
-      std::unique_lock<std::mutex> dr_lock(m_del_reasons_lock);
-      auto msg = m_del_reasons.find(info_hash_decoded);
-      if (msg != m_del_reasons.end()) {
-        if (msg->second.reason != -1) {
-          return error("Unregistered torrent: " + get_del_reason(msg->second.reason));
-        } else {
-          return error("Unregistered torrent");
-        }
-      } else {
-        return error("Unregistered torrent");
-      }
-    }
-    std::string ip = request.get_ip_address();
-    return announce(tor->second, user_it->second, params, headers, ip );
+    return AnnounceController::on_request( request );
   } else {
-    return scrape(infohashes, headers);
+    return ScrapeController::on_request( request );
   }
-}
-
-std::string worker::announce(torrent &tor, user_ptr &u, params_map_t &params, params_map_t &headers, std::string &ip) {
-  m_cur_time = time(NULL);
-
-  if (params["compact"] != "1") {
-    return error("Your client does not support compact announces");
-  }
-  bool gzip = false;
-
-  int64_t left = std::max((long long)0, std::stoll(params["left"]));
-  int64_t uploaded = std::max((long long)0, std::stoll(params["uploaded"]));
-  int64_t downloaded = std::max((long long)0, std::stoll(params["downloaded"]));
-  int64_t corrupt;
-  if( params.count("corrupt") > 0 ) {
-    std::max((long long)0, std::stoll(params["corrupt"]));
-  }
-
-  int snatched = 0; // This is the value that gets sent to the database on a snatch
-  int active = 1; // This is the value that marks a peer as active/inactive in the database
-  bool inserted = false; // If we insert the peer as opposed to update
-  bool update_torrent = false; // Whether or not we should update the torrent in the DB
-  bool completed_torrent = false; // Whether or not the current announcement is a snatch
-  bool stopped_torrent = false; // Was the torrent just stopped?
-  bool expire_token = false; // Whether or not to expire a token after torrent completion
-  bool peer_changed = false; // Whether or not the peer is new or has changed since the last announcement
-  bool invalid_ip = false;
-  bool inc_l = false, inc_s = false, dec_l = false, dec_s = false;
-
-  auto peer_id_iterator = params.find("peer_id");
-  if (peer_id_iterator == params.end()) {
-    return error("No peer ID");
-  }
-  std::string peer_id = peer_id_iterator->second;
-  peer_id = hex_decode(peer_id);
-
-  if (m_whitelist.size() > 0) {
-    bool found = false; // Found client in whitelist?
-    for (unsigned int i = 0; i < m_whitelist.size(); i++) {
-      if (peer_id.find(m_whitelist[i]) == 0) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      return error("Your client is not on the whitelist");
-    }
-  }
-
-  if (params["event"] == "completed") {
-    // Don't update <snatched> here as we may decide to use other conditions later on
-    completed_torrent = (left == 0); // Sanity check just to be extra safe
-  } else if (params["event"] == "stopped") {
-    stopped_torrent = true;
-    peer_changed = true;
-    update_torrent = true;
-    active = 0;
-  }
-  int userid = u->get_id();
-  peer * p;
-  peer_list::iterator peer_it;
-  // Insert/find the peer in the torrent list
-  if (left > 0) {
-    peer_it = tor.leechers.find(peer_id);
-    if (peer_it == tor.leechers.end()) {
-      // We could search the seed list as well, but the peer reaper will sort things out eventually
-      peer_it = add_peer(tor.leechers, peer_id);
-      inserted = true;
-      inc_l = true;
-    }
-  } else if (completed_torrent) {
-    peer_it = tor.leechers.find(peer_id);
-    if (peer_it == tor.leechers.end()) {
-      peer_it = tor.seeders.find(peer_id);
-      if (peer_it == tor.seeders.end()) {
-        peer_it = add_peer(tor.seeders, peer_id);
-        inserted = true;
-        inc_s = true;
-      } else {
-        completed_torrent = false;
-      }
-    } else if (tor.seeders.find(peer_id) != tor.seeders.end()) {
-      // If the peer exists in both peer lists, just decrement the seed count.
-      // Should be cheaper than searching the seed list in the left > 0 case
-      dec_s = true;
-    }
-  } else {
-    peer_it = tor.seeders.find(peer_id);
-    if (peer_it == tor.seeders.end()) {
-      peer_it = tor.leechers.find(peer_id);
-      if (peer_it == tor.leechers.end()) {
-        peer_it = add_peer(tor.seeders, peer_id);
-        inserted = true;
-      } else {
-        p = &peer_it->second;
-        std::pair<peer_list::iterator, bool> insert
-        = tor.seeders.insert(std::pair<std::string, peer>(peer_id, *p));
-        tor.leechers.erase(peer_it);
-        peer_it = insert.first;
-        peer_changed = true;
-        dec_l = true;
-      }
-      inc_s = true;
-    }
-  }
-  p = &peer_it->second;
-
-  int64_t upspeed = 0;
-  int64_t downspeed = 0;
-  if (inserted || params["event"] == "started") {
-    // New peer on this torrent (maybe)
-    update_torrent = true;
-    if (inserted) {
-      // If this was an existing peer, the user pointer will be corrected later
-      p->user = u;
-    }
-    p->first_announced = m_cur_time;
-    p->last_announced = 0;
-    p->uploaded = uploaded;
-    p->downloaded = downloaded;
-    p->corrupt = corrupt;
-    p->announces = 1;
-    peer_changed = true;
-  } else if (uploaded < p->uploaded || downloaded < p->downloaded) {
-    p->announces++;
-    p->uploaded = uploaded;
-    p->downloaded = downloaded;
-    peer_changed = true;
-  } else {
-    int64_t uploaded_change = 0;
-    int64_t downloaded_change = 0;
-    int64_t corrupt_change = 0;
-    p->announces++;
-
-    if (uploaded != p->uploaded) {
-      uploaded_change = uploaded - p->uploaded;
-      p->uploaded = uploaded;
-    }
-    if (downloaded != p->downloaded) {
-      downloaded_change = downloaded - p->downloaded;
-      p->downloaded = downloaded;
-    }
-    if (corrupt != p->corrupt) {
-      corrupt_change = corrupt - p->corrupt;
-      p->corrupt = corrupt;
-      tor.balance -= corrupt_change;
-      update_torrent = true;
-    }
-    peer_changed = peer_changed || uploaded_change || downloaded_change || corrupt_change;
-
-    if (uploaded_change || downloaded_change) {
-      tor.balance += uploaded_change;
-      tor.balance -= downloaded_change;
-      update_torrent = true;
-
-      if (m_cur_time > p->last_announced) {
-        upspeed = uploaded_change / (m_cur_time - p->last_announced);
-        downspeed = downloaded_change / (m_cur_time - p->last_announced);
-      }
-      std::set<int>::iterator sit = tor.tokened_users.find(userid);
-      if (tor.free_torrent == NEUTRAL) {
-        downloaded_change = 0;
-        uploaded_change = 0;
-      } else if (tor.free_torrent == FREE || sit != tor.tokened_users.end()) {
-        if (sit != tor.tokened_users.end()) {
-          expire_token = true;
-          std::stringstream record;
-          record << '(' << userid << ',' << tor.id << ',' << downloaded_change << ')';
-          std::string record_str = record.str();
-          m_db->record_token(record_str);
-        }
-        downloaded_change = 0;
-      }
-
-      if (uploaded_change || downloaded_change) {
-        std::stringstream record;
-        record << '(' << userid << ',' << uploaded_change << ',' << downloaded_change << ')';
-        std::string record_str = record.str();
-        m_db->record_user(record_str);
-      }
-    }
-  }
-  p->left = left;
-
-  auto param_ip = params.find("ip");
-  if (param_ip != params.end()) {
-    ip = param_ip->second;
-  } else if ((param_ip = params.find("ipv4")) != params.end()) {
-    ip = param_ip->second;
-  } else {
-    auto head_itr = headers.find("x-forwarded-for");
-    if (head_itr != headers.end()) {
-      size_t ip_end_pos = head_itr->second.find(',');
-      if (ip_end_pos != std::string::npos) {
-        ip = head_itr->second.substr(0, ip_end_pos);
-      } else {
-        ip = head_itr->second;
-      }
-    }
-  }
-
-  unsigned int port = std::stol(params["port"]);
-  // Generate compact ip/port string
-  if (inserted || port != p->port || ip != p->ip) {
-    p->port = port;
-    p->ip = ip;
-    p->ip_port = "";
-    char x = 0;
-    for (size_t pos = 0, end = ip.length(); pos < end; pos++) {
-      if (ip[pos] == '.') {
-        p->ip_port.push_back(x);
-        x = 0;
-        continue;
-      } else if (!isdigit(ip[pos])) {
-        invalid_ip = true;
-        break;
-      }
-      x = x * 10 + ip[pos] - '0';
-    }
-    if (!invalid_ip) {
-      p->ip_port.push_back(x);
-      p->ip_port.push_back(port >> 8);
-      p->ip_port.push_back(port & 0xFF);
-    }
-    if (p->ip_port.length() != 6) {
-      p->ip_port.clear();
-      invalid_ip = true;
-    }
-    p->invalid_ip = invalid_ip;
-  } else {
-    invalid_ip = p->invalid_ip;
-  }
-
-  // Update the peer
-  p->last_announced = m_cur_time;
-  p->visible = peer_is_visible(u, p);
-
-  // Add peer data to the database
-  std::stringstream record;
-  if (peer_changed) {
-    record << '(' << userid << ',' << tor.id << ',' << active << ',' << uploaded << ',' << downloaded << ',' << upspeed << ',' << downspeed << ',' << left << ',' << corrupt << ',' << (m_cur_time - p->first_announced) << ',' << p->announces << ',';
-    std::string record_str = record.str();
-    std::string record_ip;
-    if (u->is_protected()) {
-      record_ip = "";
-    } else {
-      record_ip = ip;
-    }
-    m_db->record_peer(record_str, record_ip, peer_id, headers["user-agent"]);
-  } else {
-    record << '(' << tor.id << ',' << (m_cur_time - p->first_announced) << ',' << p->announces << ',';
-    std::string record_str = record.str();
-    m_db->record_peer(record_str, peer_id);
-  }
-
-  // Select peers!
-  unsigned int numwant;
-  auto param_numwant = params.find("numwant");
-  if (param_numwant == params.end()) {
-    numwant = 50;
-  } else {
-    numwant = std::min(50l, std::stol(param_numwant->second));
-  }
-
-  if (stopped_torrent) {
-    numwant = 0;
-    if (left > 0) {
-      dec_l = true;
-    } else {
-      dec_s = true;
-    }
-  } else if (completed_torrent) {
-    snatched = 1;
-    update_torrent = true;
-    tor.completed++;
-
-    std::stringstream record;
-    std::string record_ip;
-    if (u->is_protected()) {
-      record_ip = "";
-    } else {
-      record_ip = ip;
-    }
-    record << '(' << userid << ',' << tor.id << ',' << m_cur_time;
-    std::string record_str = record.str();
-    m_db->record_snatch(record_str, record_ip);
-
-    // User is a seeder now!
-    if (!inserted) {
-      std::pair<peer_list::iterator, bool> insert
-      = tor.seeders.insert(std::pair<std::string, peer>(peer_id, *p));
-      tor.leechers.erase(peer_it);
-      peer_it = insert.first;
-      p = &peer_it->second;
-      dec_l = inc_s = true;
-    }
-    if (expire_token) {
-      m_site_comm->expire_token(tor.id, userid);
-      tor.tokened_users.erase(userid);
-    }
-  } else if (!u->can_leech() && left > 0) {
-    numwant = 0;
-  }
-
-  std::string peers;
-  if (numwant > 0) {
-    peers.reserve(numwant*6);
-    unsigned int found_peers = 0;
-    if (left > 0) { // Show seeders to leechers first
-      if (tor.seeders.size() > 0) {
-        // We do this complicated stuff to cycle through the seeder list, so all seeders will get shown to leechers
-
-        // Find out where to begin in the seeder list
-        peer_list::const_iterator i;
-        if (tor.last_selected_seeder == "") {
-          i = tor.seeders.begin();
-        } else {
-          i = tor.seeders.find(tor.last_selected_seeder);
-          if (i == tor.seeders.end() || ++i == tor.seeders.end()) {
-            i = tor.seeders.begin();
-          }
-        }
-
-        // Find out where to end in the seeder list
-        peer_list::const_iterator end;
-        if (i == tor.seeders.begin()) {
-          end = tor.seeders.end();
-        } else {
-          end = i;
-          if (--end == tor.seeders.begin()) {
-            ++end;
-            ++i;
-          }
-        }
-
-        // Add seeders
-        while (i != end && found_peers < numwant) {
-          if (i == tor.seeders.end()) {
-            i = tor.seeders.begin();
-          }
-          // Don't show users themselves
-          if (i->second.user->get_id() == userid || !i->second.visible) {
-            ++i;
-            continue;
-          }
-          peers.append(i->second.ip_port);
-          found_peers++;
-          tor.last_selected_seeder = i->first;
-          ++i;
-        }
-      }
-
-      if (found_peers < numwant && tor.leechers.size() > 1) {
-        for (peer_list::const_iterator i = tor.leechers.begin(); i != tor.leechers.end() && found_peers < numwant; ++i) {
-          // Don't show users themselves or leech disabled users
-          if (i->second.ip_port == p->ip_port || i->second.user->get_id() == userid || !i->second.visible) {
-            continue;
-          }
-          found_peers++;
-          peers.append(i->second.ip_port);
-        }
-
-      }
-    } else if (tor.leechers.size() > 0) { // User is a seeder, and we have leechers!
-      for (peer_list::const_iterator i = tor.leechers.begin(); i != tor.leechers.end() && found_peers < numwant; ++i) {
-        // Don't show users themselves or leech disabled users
-        if (i->second.user->get_id() == userid || !i->second.visible) {
-          continue;
-        }
-        found_peers++;
-        peers.append(i->second.ip_port);
-      }
-    }
-  }
-
-  // Update the stats
-  std::unique_lock<std::mutex> lock(stats.mutex);
-  stats.succ_announcements++;
-  if (dec_l || dec_s || inc_l || inc_s) {
-    std::unique_lock<std::mutex> us_lock(m_ustats_lock);
-    if (inc_l) {
-      p->user->incr_leeching();
-      stats.leechers++;
-    }
-    if (inc_s) {
-      p->user->incr_seeding();
-      stats.seeders++;
-    }
-    if (dec_l) {
-      p->user->decr_leeching();
-      stats.leechers--;
-    }
-    if (dec_s) {
-      p->user->decr_seeding();
-      stats.seeders--;
-    }
-  }
-  lock.unlock();
-
-  // Correct the stats for the old user if the peer's user link has changed
-  if (p->user != u) {
-    if (!stopped_torrent) {
-      std::unique_lock<std::mutex> us_lock(m_ustats_lock);
-      if (left > 0) {
-        u->incr_leeching();
-        p->user->decr_leeching();
-      } else {
-        u->incr_seeding();
-        p->user->decr_seeding();
-      }
-    }
-    p->user = u;
-  }
-
-  // Delete peers as late as possible to prevent access problems
-  if (stopped_torrent) {
-    if (left > 0) {
-      tor.leechers.erase(peer_it);
-    } else {
-      tor.seeders.erase(peer_it);
-    }
-  }
-
-  // Putting this after the peer deletion gives us accurate swarm sizes
-  if (update_torrent || tor.last_flushed + 3600 < m_cur_time) {
-    tor.last_flushed = m_cur_time;
-
-    std::stringstream record;
-    record << '(' << tor.id << ',' << tor.seeders.size() << ',' << tor.leechers.size() << ',' << snatched << ',' << tor.balance << ')';
-    std::string record_str = record.str();
-    m_db->record_torrent(record_str);
-  }
-
-  if (!u->can_leech() && left > 0) {
-    return error("Access denied, leeching forbidden");
-  }
-
-  std::string output = "d8:completei";
-  output.reserve(350);
-  output += std::to_string(tor.seeders.size());
-  output += "e10:downloadedi";
-  output += std::to_string(tor.completed);
-  output += "e10:incompletei";
-  output += std::to_string(tor.leechers.size());
-  output += "e8:intervali";
-  output += std::to_string(m_conf->announce_interval+std::min((size_t)600, tor.seeders.size())); // ensure a more even distribution of announces/second
-  output += "e12:min intervali";
-  output += std::to_string(m_conf->announce_interval);
-  output += "e5:peers";
-  if (peers.length() == 0) {
-    output += "0:";
-  } else {
-    output += std::to_string(peers.length());
-    output += ":";
-    output += peers;
-  }
-  if (invalid_ip) {
-    output += warning("Illegal character found in IP address. IPv6 is not supported");
-  }
-  output += 'e';
-
-  /* gzip compression actually makes announce returns larger from our
-   * testing. Feel free to enable this here if you'd like but be aware of
-   * possibly inflated return size
-   */
-  /*if (headers["accept-encoding"].find("gzip") != std::string::npos) {
-    gzip = true;
-  }*/
-  return response(output, gzip, false);
-}
-
-std::string worker::scrape(const std::vector<std::string> &infohashes, params_map_t &headers) {
-  bool gzip = false;
-  std::string output = "d5:filesd";
-  for (auto infohash : infohashes) {
-  
-    infohash = hex_decode(infohash);
-
-    torrent_list::iterator tor = m_torrents_list.find(infohash);
-    if (tor == m_torrents_list.end()) {
-      continue;
-    }
-    torrent *t = &(tor->second);
-
-    output += std::to_string(infohash.length());
-    output += ':';
-    output += infohash;
-    output += "d8:completei";
-    output += std::to_string(t->seeders.size());
-    output += "e10:incompletei";
-    output += std::to_string(t->leechers.size());
-    output += "e10:downloadedi";
-    output += std::to_string(t->completed);
-    output += "ee";
-  }
-  output += "ee";
-  if (headers["accept-encoding"].find("gzip") != std::string::npos) {
-    gzip = true;
-  }
-  return response(output, gzip, false);
 }
 
 //TODO: Restrict to local IPs
@@ -749,7 +232,7 @@ std::string worker::update(params_map_t &params) {
     }
     auto torrent_it = m_torrents_list.find(info_hash);
     if (torrent_it != m_torrents_list.end()) {
-      std::cout << "Deleting torrent " << torrent_it->second.id << " for the reason '" << get_del_reason(reason) << "'" << std::endl;
+      std::cout << "Deleting torrent " << torrent_it->second.id << " for the reason '" << get_deletion_reason(reason) << "'" << std::endl;
       std::unique_lock<std::mutex> stats_lock(stats.mutex);
       stats.leechers -= torrent_it->second.leechers.size();
       stats.seeders -= torrent_it->second.seeders.size();
@@ -862,13 +345,6 @@ std::string worker::update(params_map_t &params) {
   return response("success", false, false);
 }
 
-peer_list::iterator worker::add_peer(peer_list &peer_list, std::string &peer_id) {
-  peer new_peer;
-  std::pair<peer_list::iterator, bool> insert
-  = peer_list.insert(std::pair<std::string, peer>(peer_id, new_peer));
-  return insert.first;
-}
-
 void worker::start_reaper() {
   std::thread thread(&worker::do_start_reaper, this);
   thread.detach();
@@ -950,64 +426,4 @@ void worker::reap_del_reasons()
     ++it;
   }
   std::cout << "Reaped " << reaped << " del reasons" << std::endl;
-}
-
-std::string worker::get_del_reason(int code)
-{
-  switch (code) {
-    case DUPE:
-      return "Dupe";
-    case TRUMP:
-      return "Trump";
-    case BAD_FILE_NAMES:
-      return "Bad File Names";
-    case BAD_FOLDER_NAMES:
-      return "Bad Folder Names";
-    case BAD_TAGS:
-      return "Bad Tags";
-    case BAD_FORMAT:
-      return "Disallowed Format";
-    case DISCS_MISSING:
-      return "Discs Missing";
-    case DISCOGRAPHY:
-      return "Discography";
-    case EDITED_LOG:
-      return "Edited Log";
-    case INACCURATE_BITRATE:
-      return "Inaccurate Bitrate";
-    case LOW_BITRATE:
-      return "Low Bitrate";
-    case MUTT_RIP:
-      return "Mutt Rip";
-    case BAD_SOURCE:
-      return "Disallowed Source";
-    case ENCODE_ERRORS:
-      return "Encode Errors";
-    case BANNED:
-      return "Specifically Banned";
-    case TRACKS_MISSING:
-      return "Tracks Missing";
-    case TRANSCODE:
-      return "Transcode";
-    case CASSETTE:
-      return "Unapproved Cassette";
-    case UNSPLIT_ALBUM:
-      return "Unsplit Album";
-    case USER_COMPILATION:
-      return "User Compilation";
-    case WRONG_FORMAT:
-      return "Wrong Format";
-    case WRONG_MEDIA:
-      return "Wrong Media";
-    case AUDIENCE:
-      return "Audience Recording";
-    default:
-      return "";
-  }
-}
-
-/* Peers should be invisible if they are a leecher without
-   download privs or their IP is invalid */
-bool worker::peer_is_visible(user_ptr &u, peer *p) {
-  return (p->left == 0 || u->can_leech()) && !p->invalid_ip;
 }

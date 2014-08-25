@@ -16,9 +16,11 @@
 
 //---------- Connection mother - spawns middlemen and lets them deal with the connection
 
-connection_mother::connection_mother(worker * worker_obj, config * config_obj, mysql * db_obj, site_comm * sc_obj)
-  : m_worker(worker_obj), m_conf(config_obj), m_db(db_obj), m_site_comm(sc_obj)
+connection_mother::connection_mother(worker * worker_obj, config * config_obj, site_comm * sc_obj)
+  : m_worker(worker_obj), m_conf(config_obj), m_site_comm(sc_obj)
 {
+  m_db = mysql::get_instance();
+
   memset(&m_address, 0, sizeof(m_address));
   m_address_length = sizeof(m_address);
 

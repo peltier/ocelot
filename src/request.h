@@ -39,20 +39,21 @@ class Request {
     //
     // Get the pass key from request string
     //
-    std::string get_pass_key() const;
+    std::string get_passkey() const;
     
     //
     // Get all the request params from a request string
     //
-    params_map_t get_request_params() const;
+    params_map_t get_params() const;
   
-    params_map_t get_request_headers() const;
+    params_map_t get_headers() const;
     
     std::vector<std::string> get_info_hashes() const;
-  
+
   private:
     std::string m_input;
     std::string m_ip_address;
+
 };
 
 #endif

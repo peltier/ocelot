@@ -59,7 +59,7 @@ THE WORKER
 // THE MOTHER - Spawns connection middlemen
 class connection_mother {
   public:
-    connection_mother(worker * worker_obj, config * config_obj, mysql * db_obj, site_comm * sc_obj);
+    connection_mother(worker * worker_obj, config * config_obj, site_comm * sc_obj);
     void handle_connect(ev::io &watcher, int events_flags);
     ~connection_mother();
 
