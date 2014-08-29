@@ -10,8 +10,6 @@
 #include "response.h"
 #include "logger.h"
 
-#include <boost/date_time/posix_time/posix_time.hpp>
-
 // Define the connection mother (first half) and connection middlemen (second half)
 
 //TODO Better errors
@@ -166,13 +164,10 @@ void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
       char ip[INET_ADDRSTRLEN];
       inet_ntop(AF_INET, &(m_client_address.sin_addr), ip, INET_ADDRSTRLEN);
       std::string ip_str = ip;
-
-      //--- CALL WORKER
-      auto before = boost::posix_time::microsec_clock::local_time();
-      m_response = m_worker->on_request( Request(m_request, ip_str) );
-      auto after = boost::posix_time::microsec_clock::local_time();
       
-      std::cout << "Request: " << ( after - before ).total_microseconds() << " μs" << std::endl;
+      
+      BENCHMARK( m_response = m_worker->on_request( Request(m_request, ip_str) ) );
+
     }
 
     // Find out when the socket is writeable.

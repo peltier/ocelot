@@ -10,6 +10,14 @@
 #include <mutex>
 #include <atomic>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+
+#define BENCHMARK(x) \
+  auto before = boost::posix_time::microsec_clock::local_time(); \
+  x; \
+  auto after = boost::posix_time::microsec_clock::local_time(); \
+  std::cout << "BENCHMARK: " << ( after - before ).total_microseconds() << " μs" << std::endl;
+
 class user;
 typedef std::shared_ptr<user> user_ptr;
 
