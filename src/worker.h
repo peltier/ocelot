@@ -20,7 +20,7 @@ class worker {
   public:
     worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, site_comm * sc);
   
-    std::string on_request(const Request &request);
+    std::string on_request(Request request);
 
     bool signal(int sig);
 

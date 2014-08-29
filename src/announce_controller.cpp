@@ -95,7 +95,7 @@ std::string AnnounceController::get_response() {
   int64_t left = std::max((long long)0, std::stoll(params["left"]));
   int64_t uploaded = std::max((long long)0, std::stoll(params["uploaded"]));
   int64_t downloaded = std::max((long long)0, std::stoll(params["downloaded"]));
-  int64_t corrupt;
+  int64_t corrupt = 0; // TODO: Is this assumption safe?
   if( params.count("corrupt") > 0 ) {
     std::max((long long)0, std::stoll(params["corrupt"]));
   }
@@ -458,10 +458,8 @@ std::string AnnounceController::get_response() {
   }
   
   // Update the stats
-  std::unique_lock<std::mutex> lock(stats.mutex);
   stats.succ_announcements++;
   if (dec_l || dec_s || inc_l || inc_s) {
-    std::unique_lock<std::mutex> us_lock(worker::m_ustats_lock);
     if (inc_l) {
       p->user->incr_leeching();
       stats.leechers++;
@@ -479,12 +477,10 @@ std::string AnnounceController::get_response() {
       stats.seeders--;
     }
   }
-  lock.unlock();
   
   // Correct the stats for the old user if the peer's user link has changed
   if (p->user != u) {
     if (!stopped_torrent) {
-      std::unique_lock<std::mutex> us_lock(worker::m_ustats_lock);
       if (left > 0) {
         u->incr_leeching();
         p->user->decr_leeching();

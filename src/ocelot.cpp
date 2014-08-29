@@ -10,7 +10,7 @@
 
 static connection_mother *mother;
 static worker *work;
-struct stats stats;
+struct stats_t stats;
 
 static void sig_handler(int sig) {
   Logger::warn("Caught SIGINT/SIGTERM");

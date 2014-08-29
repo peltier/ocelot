@@ -1,6 +1,8 @@
 #ifndef OCELOT_USER_H
 #define OCELOT_USER_H
 
+#include <mutex>
+
 class user {
   public:
     user(int uid, bool leech, bool protect);
@@ -20,6 +22,8 @@ class user {
     int m_id;
     bool m_leechstatus;
     bool m_protect_ip;
+  
+    std::mutex m_stats_mutex;
 
     struct {
       unsigned int leeching;

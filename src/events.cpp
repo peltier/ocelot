@@ -10,6 +10,8 @@
 #include "response.h"
 #include "logger.h"
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 // Define the connection mother (first half) and connection middlemen (second half)
 
 //TODO Better errors
@@ -78,9 +80,7 @@ connection_mother::connection_mother(worker * worker_obj, config * config_obj, s
 void connection_mother::handle_connect(ev::io &watcher, int events_flags) {
   // Spawn a new middleman
   if (stats.open_connections < m_conf->max_middlemen) {
-    std::unique_lock<std::mutex> lock(stats.mutex);
     stats.opened_connections++;
-    lock.unlock();
     new connection_middleman(m_listen_socket, m_address, m_address_length, m_worker, m_conf);
   }
 }
@@ -105,7 +105,6 @@ connection_middleman::connection_middleman(int &m_listen_socket, sockaddr_in &m_
   if (m_socket_connection == -1) {
     std::cout << "Accept failed, errno " << errno << ": " << strerror(errno) << std::endl;
     delete this;
-    std::unique_lock<std::mutex> lock(stats.mutex);
     stats.open_connections++; // destructor decrements open connections
     return;
   }
@@ -134,13 +133,11 @@ connection_middleman::connection_middleman(int &m_listen_socket, sockaddr_in &m_
   m_timeout_event.set(m_conf->timeout_interval, 0);
   m_timeout_event.start();
 
-  std::unique_lock<std::mutex> lock(stats.mutex);
   stats.open_connections++;
 }
 
 connection_middleman::~connection_middleman() {
   close(m_socket_connection);
-  std::unique_lock<std::mutex> lock(stats.mutex);
   stats.open_connections--;
 }
 
@@ -156,9 +153,7 @@ void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
     delete this;
     return;
   }
-  std::unique_lock<std::mutex> lock(stats.mutex);
   stats.bytes_read += ret;
-  lock.unlock();
   m_request.append(buffer, ret);
   size_t m_request_size = m_request.size();
   if (m_request_size > m_conf->max_request_size || (m_request_size >= 4 && m_request.compare(m_request_size - 4, std::string::npos, "\r\n\r\n") == 0)) {
@@ -173,7 +168,11 @@ void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
       std::string ip_str = ip;
 
       //--- CALL WORKER
+      auto before = boost::posix_time::microsec_clock::local_time();
       m_response = m_worker->on_request( Request(m_request, ip_str) );
+      auto after = boost::posix_time::microsec_clock::local_time();
+      
+      std::cout << "Request: " << ( after - before ).total_microseconds() << " μs" << std::endl;
     }
 
     // Find out when the socket is writeable.
@@ -187,9 +186,7 @@ void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
 void connection_middleman::handle_write(ev::io &watcher, int events_flags) {
   int ret = send(m_socket_connection, m_response.c_str()+m_written, m_response.size()-m_written, MSG_NOSIGNAL);
   m_written += ret;
-  std::unique_lock<std::mutex> lock(stats.mutex);
   stats.bytes_written += ret;
-  lock.unlock();
   if (m_written == m_response.size()) {
     m_write_event.stop();
     m_timeout_event.stop();

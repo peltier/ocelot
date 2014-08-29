@@ -134,10 +134,8 @@ std::string UpdateController::get_response() {
     auto torrent_it = ref_torrent_list.find(info_hash);
     if (torrent_it != ref_torrent_list.end()) {
       std::cout << "Deleting torrent " << torrent_it->second.id << " for the reason '" << get_deletion_reason(reason) << "'" << std::endl;
-      std::unique_lock<std::mutex> stats_lock(stats.mutex);
       stats.leechers -= torrent_it->second.leechers.size();
       stats.seeders -= torrent_it->second.seeders.size();
-      stats_lock.unlock();
       std::unique_lock<std::mutex> us_lock(worker::m_ustats_lock);
       for (auto p = torrent_it->second.leechers.begin(); p != torrent_it->second.leechers.end(); ++p) {
         p->second.user->decr_leeching();

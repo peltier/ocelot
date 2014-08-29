@@ -24,7 +24,6 @@
 #include "db.h"
 #include "worker.h"
 #include "site_comm.h"
-#include "report.h"
 #include "user.h"
 #include "logger.h"
 
@@ -57,7 +56,7 @@ bool worker::signal(int sig) {
 //
 // Process Incoming Request
 //
-std::string worker::on_request( const Request &request ) {
+std::string worker::on_request( Request request ) {
   // Preliminary check for invalid request
   if ( !request.is_valid() ) {
     return error("GET string too short");
@@ -161,7 +160,6 @@ void worker::reap_peers() {
     }
   }
   if (reaped_l || reaped_s) {
-    std::unique_lock<std::mutex> lock(stats.mutex);
     stats.leechers -= reaped_l;
     stats.seeders -= reaped_s;
   }
