@@ -20,6 +20,23 @@ class UpdateController {
     Request m_request;
   
     std::string before__authenticate();
+  
+    void change_passkey();
+    void add_torrent();
+    void update_torrent();
+    void update_torrents();
+    void delete_torrent();
+    void add_token();
+    void remove_token();
+    void add_user();
+    void update_user();
+    void remove_user();
+    void remove_users();
+    void add_whitelist();
+    void edit_whitelist();
+    void remove_whitelist();
+    void update_announce_interval();
+    void torrent_info();
 };
 
 #endif /* defined(__ocelot__update_controller__) */
