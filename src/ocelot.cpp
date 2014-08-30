@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
   
   config conf;
 
-  site_comm sc(conf);
+  site_comm sc;
   sc.verbose_flush = verbose;
 
   std::vector<std::string> whitelist;
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
   work = new worker(torrents_list, users_list, whitelist, &conf, &sc);
 
   // Create connection mother, which binds to its socket and handles the event stuff
-  mother = new connection_mother(work, &conf, &sc);
+  mother = new connection_mother(work);
 
   return 0;
 }

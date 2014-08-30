@@ -188,7 +188,7 @@ void mysql::flush() {
 
 void mysql::flush_users() {
   std::string sql;
-  std::unique_lock<std::mutex> uq_lock(m_user_queue_lock);
+  std::lock_guard<std::mutex> uq_lock(m_user_queue_lock);
   size_t qsize = m_user_queue.size();
   if (m_verbose_flush || qsize > 0) {
     std::cout << "User flush queue size: " << qsize << std::endl;

@@ -7,7 +7,7 @@
 
 class schedule {
   public:
-    schedule(worker * worker_obj, config* conf_obj, mysql * db_obj, site_comm * sc_obj);
+    schedule(worker * worker_obj);
     void handle(ev::timer &watcher, int events_flags);
 
   private:

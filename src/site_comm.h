@@ -15,12 +15,12 @@ using boost::asio::ip::tcp;
 
 class site_comm {
   public:
-    site_comm(config conf);
+    site_comm();
     ~site_comm();
   
     static site_comm * get_instance() {
       if( !m_site_comm_instance ) {
-        m_site_comm_instance = new site_comm( config() );
+        m_site_comm_instance = new site_comm();
       }
       
       return m_site_comm_instance;
@@ -35,7 +35,7 @@ class site_comm {
   private:
     static site_comm * m_site_comm_instance;
   
-    config m_conf;
+    config * m_conf;
     std::mutex m_expire_queue_lock;
     std::string m_expire_token_buffer;
     std::queue<std::string> m_token_queue;

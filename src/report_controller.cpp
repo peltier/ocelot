@@ -16,7 +16,9 @@ std::string style_sheet() {
 }
 
 std::string ReportController::before__authenticate() {
-  if( m_request.get_passkey() != config().report_password ) {
+  auto global_config = config::get_instance();
+
+  if( m_request.get_passkey() != global_config->report_password ) {
     return error("Authentication failure");
   }
   

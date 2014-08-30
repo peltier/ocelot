@@ -15,8 +15,8 @@ using boost::asio::ip::tcp;
 
 site_comm * site_comm::m_site_comm_instance = nullptr;
 
-site_comm::site_comm(config config)
-  : m_conf(config), m_t_active(false) {}
+site_comm::site_comm()
+  : m_conf( config::get_instance() ), m_t_active(false) {}
 
 site_comm::~site_comm() {
   if(m_site_comm_instance) {
@@ -70,7 +70,7 @@ void site_comm::do_flush_tokens()
       boost::asio::io_service io_service;
 
       tcp::resolver resolver(io_service);
-      tcp::resolver::query query(m_conf.site_host, "http");
+      tcp::resolver::query query(m_conf->site_host, "http");
       tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
       tcp::resolver::iterator end;
 
@@ -86,9 +86,9 @@ void site_comm::do_flush_tokens()
 
       boost::asio::streambuf request;
       std::ostream request_stream(&request);
-      request_stream << "GET " << m_conf.site_path << "/tools.php?key=" << m_conf.site_password;
+      request_stream << "GET " << m_conf->site_path << "/tools.php?key=" << m_conf->site_password;
       request_stream << "&type=expiretoken&action=ocelot&tokens=" << m_token_queue.front() << " HTTP/1.0\r\n";
-      request_stream << "Host: " << m_conf.site_host << "\r\n";
+      request_stream << "Host: " << m_conf->site_host << "\r\n";
       request_stream << "Accept: */*\r\n";
       request_stream << "Connection: close\r\n\r\n";
 

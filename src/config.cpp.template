@@ -1,5 +1,11 @@
 #include "config.h"
 
+// Set Instance to nullptr
+config * config::m_config_instance = nullptr;
+
+//
+// Config Settings
+//
 config::config() {
   host = "127.0.0.1";
   port = 34000;

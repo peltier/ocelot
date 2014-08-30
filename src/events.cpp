@@ -16,10 +16,9 @@
 
 //---------- Connection mother - spawns middlemen and lets them deal with the connection
 
-connection_mother::connection_mother(worker * worker_obj, config * config_obj, site_comm * sc_obj)
-  : m_worker(worker_obj), m_conf(config_obj), m_site_comm(sc_obj)
+connection_mother::connection_mother(worker * worker_obj)
+  : m_worker(worker_obj), m_config( config::get_instance() )
 {
-  m_db = mysql::get_instance();
 
   memset(&m_address, 0, sizeof(m_address));
   m_address_length = sizeof(m_address);
@@ -29,7 +28,7 @@ connection_mother::connection_mother(worker * worker_obj, config * config_obj, s
   // Stop old sockets from hogging the port
   int yes = 1;
   if (setsockopt(m_listen_socket, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-    std::cout << "Could not reuse socket" << std::endl;
+    Logger::error("Could not reuse socket");
   }
 
   // Create libev event loop
@@ -42,7 +41,7 @@ connection_mother::connection_mother(worker * worker_obj, config * config_obj, s
   m_address.sin_family = AF_INET;
   //m_address.sin_addr.s_addr = inet_addr(m_conf->host.c_str()); // htonl(INADDR_ANY)
   m_address.sin_addr.s_addr = htonl(INADDR_ANY);
-  m_address.sin_port = htons(m_conf->port);
+  m_address.sin_port = htons(m_config->port);
 
   // Bind
   if (bind(m_listen_socket, (sockaddr *) &m_address, sizeof(m_address)) == -1) {
@@ -50,7 +49,7 @@ connection_mother::connection_mother(worker * worker_obj, config * config_obj, s
   }
 
   // Listen
-  if (listen(m_listen_socket, m_conf->max_connections) == -1) {
+  if (listen(m_listen_socket, m_config->max_connections) == -1) {
     Logger::error("Listen failed");
   }
 
@@ -64,10 +63,10 @@ connection_mother::connection_mother(worker * worker_obj, config * config_obj, s
   }
 
   // Create libev timer
-  schedule timer(worker_obj, m_conf, m_db, m_site_comm);
+  schedule timer(worker_obj);
 
   m_schedule_event.set<schedule, &schedule::handle>(&timer);
-  m_schedule_event.set(m_conf->schedule_interval, m_conf->schedule_interval); // After interval, every interval
+  m_schedule_event.set(m_config->schedule_interval, m_config->schedule_interval); // After interval, every interval
   m_schedule_event.start();
 
   Logger::info("Sockets up, starting event loop!");
@@ -77,9 +76,9 @@ connection_mother::connection_mother(worker * worker_obj, config * config_obj, s
 
 void connection_mother::handle_connect(ev::io &watcher, int events_flags) {
   // Spawn a new middleman
-  if (stats.open_connections < m_conf->max_middlemen) {
+  if (stats.open_connections < m_config->max_middlemen) {
     stats.opened_connections++;
-    new connection_middleman(m_listen_socket, m_address, m_address_length, m_worker, m_conf);
+    new connection_middleman(m_listen_socket, m_address, m_address_length, m_worker);
   }
 }
 
@@ -96,8 +95,8 @@ connection_mother::~connection_mother()
 
 //---------- Connection middlemen - these little guys live until their connection is closed
 
-connection_middleman::connection_middleman(int &m_listen_socket, sockaddr_in &m_address, socklen_t &m_address_length, worker * new_work, config * config_obj)
-  : m_conf(config_obj), m_worker(new_work)
+connection_middleman::connection_middleman(int &m_listen_socket, sockaddr_in &m_address, socklen_t &m_address_length, worker * new_work)
+  : m_config( config::get_instance() ), m_worker(new_work)
 {
   m_socket_connection = accept(m_listen_socket, (sockaddr *) &m_address, &m_address_length);
   if (m_socket_connection == -1) {
@@ -120,7 +119,7 @@ connection_middleman::connection_middleman(int &m_listen_socket, sockaddr_in &m_
   if (getpeername(m_socket_connection, (sockaddr *) &m_client_address, &m_address_length) == -1) {
     //std::cout << "Could not get client info" << std::endl;
   }
-  m_request.reserve(m_conf->max_read_buffer);
+  m_request.reserve(m_config->max_read_buffer);
   m_written = 0;
 
   m_read_event.set<connection_middleman, &connection_middleman::handle_read>(this);
@@ -128,7 +127,7 @@ connection_middleman::connection_middleman(int &m_listen_socket, sockaddr_in &m_
 
   // Let the socket timeout in timeout_interval seconds
   m_timeout_event.set<connection_middleman, &connection_middleman::handle_timeout>(this);
-  m_timeout_event.set(m_conf->timeout_interval, 0);
+  m_timeout_event.set(m_config->timeout_interval, 0);
   m_timeout_event.start();
 
   stats.open_connections++;
@@ -142,10 +141,10 @@ connection_middleman::~connection_middleman() {
 // Handler to read data from the socket, called by event loop when socket is readable
 void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
 
-  char buffer[ m_conf->max_read_buffer + 1 ];
+  char buffer[ m_config->max_read_buffer + 1 ];
 
-  memset(buffer, 0, m_conf->max_read_buffer + 1);
-  int ret = recv(m_socket_connection, &buffer, m_conf->max_read_buffer, 0);
+  memset(buffer, 0, m_config->max_read_buffer + 1);
+  int ret = recv(m_socket_connection, &buffer, m_config->max_read_buffer, 0);
 
   if (ret <= 0) {
     delete this;
@@ -154,10 +153,10 @@ void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
   stats.bytes_read += ret;
   m_request.append(buffer, ret);
   size_t m_request_size = m_request.size();
-  if (m_request_size > m_conf->max_request_size || (m_request_size >= 4 && m_request.compare(m_request_size - 4, std::string::npos, "\r\n\r\n") == 0)) {
+  if (m_request_size > m_config->max_request_size || (m_request_size >= 4 && m_request.compare(m_request_size - 4, std::string::npos, "\r\n\r\n") == 0)) {
     m_read_event.stop();
 
-    if (m_request_size > m_conf->max_request_size) {
+    if (m_request_size > m_config->max_request_size) {
       shutdown(m_socket_connection, SHUT_RD);
       m_response = error("GET string too long");
     } else {

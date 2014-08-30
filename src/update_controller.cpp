@@ -3,7 +3,7 @@
 #include "worker.h"
 
 std::string UpdateController::before__authenticate() {
-  if ( m_request.get_passkey() == config().site_password) {
+  if ( m_request.get_passkey() == m_config->site_password) {
     return error("Authentication failure");
   }
   
@@ -376,7 +376,7 @@ void UpdateController::update_announce_interval() {
   unsigned int interval = std::stol(params["new_announce_interval"]);
   // TODO: ALLOW ANNOUNCE INTERVAL TO BE CHANGED
   std::cout << "FIX ANNOUNCE INTERVAL TO BE CHANGED" << std::endl;
-  //    m_conf->announce_interval = interval;
+  m_config->announce_interval = interval;
   std::cout << "Edited announce interval to " << interval << std::endl;
 }
 

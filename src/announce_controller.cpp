@@ -515,6 +515,8 @@ std::string AnnounceController::get_response() {
     return error("Access denied, leeching forbidden");
   }
   
+  auto global_config = config::get_instance();
+  
   std::string output = "d8:completei";
   output.reserve(350);
   output += std::to_string(tor.seeders.size());
@@ -523,9 +525,9 @@ std::string AnnounceController::get_response() {
   output += "e10:incompletei";
   output += std::to_string(tor.leechers.size());
   output += "e8:intervali";
-  output += std::to_string(config().announce_interval+std::min((size_t)600, tor.seeders.size())); // ensure a more even distribution of announces/second
+  output += std::to_string(global_config->announce_interval+std::min((size_t)600, tor.seeders.size())); // ensure a more even distribution of announces/second
   output += "e12:min intervali";
-  output += std::to_string(config().announce_interval);
+  output += std::to_string(global_config->announce_interval);
   output += "e5:peers";
   if (peers.length() == 0) {
     output += "0:";

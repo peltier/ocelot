@@ -17,8 +17,8 @@ class mysql {
   
     static mysql * get_instance() {
       if( !m_mysql_instance ) {
-        config conf;
-        m_mysql_instance = new mysql(conf.mysql_db, conf.mysql_host, conf.mysql_username, conf.mysql_password);
+        auto config = config::get_instance();
+        m_mysql_instance = new mysql(config->mysql_db, config->mysql_host, config->mysql_username, config->mysql_password);
       }
       
       return m_mysql_instance;

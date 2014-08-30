@@ -59,7 +59,7 @@ THE WORKER
 // THE MOTHER - Spawns connection middlemen
 class connection_mother {
   public:
-    connection_mother(worker * worker_obj, config * config_obj, site_comm * sc_obj);
+    connection_mother(worker * worker_obj);
     void handle_connect(ev::io &watcher, int events_flags);
     ~connection_mother();
 
@@ -68,9 +68,7 @@ class connection_mother {
     sockaddr_in m_address;
     socklen_t m_address_length;
     worker * m_worker;
-    config * m_conf;
-    mysql * m_db;
-    site_comm * m_site_comm;
+    config * m_config;
     ev::timer m_schedule_event;
 };
 
@@ -79,7 +77,7 @@ class connection_mother {
 // Add their own watchers to see when sockets become readable
 class connection_middleman {
   public:
-    connection_middleman(int &listen_socket, sockaddr_in &address, socklen_t &addr_len, worker* work, config * config_obj);
+    connection_middleman(int &listen_socket, sockaddr_in &address, socklen_t &addr_len, worker* work);
     ~connection_middleman();
 
     void handle_read(ev::io &watcher, int events_flags);
@@ -95,7 +93,7 @@ class connection_middleman {
     std::string m_request;
     std::string m_response;
 
-    config * m_conf;
+    config * m_config;
     worker * m_worker;
     sockaddr_in m_client_address;
 };
