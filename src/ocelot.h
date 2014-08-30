@@ -18,8 +18,8 @@
   auto after = boost::posix_time::microsec_clock::local_time(); \
   std::cout << "BENCHMARK: " << ( after - before ).total_microseconds() << " μs" << std::endl;
 
-class user;
-typedef std::shared_ptr<user> user_ptr;
+class User;
+typedef std::shared_ptr<User> user_ptr;
 
 struct peer {
   unsigned int port;
@@ -42,7 +42,7 @@ typedef std::map<std::string, peer> peer_list;
 
 enum freetype { NORMAL, FREE, NEUTRAL };
 
-struct torrent {
+struct torrent_t {
   int id;
   int64_t balance;
   int completed;
@@ -80,12 +80,12 @@ enum {
   AUDIENCE // 22
 };
 
-struct del_message {
+struct deletion_message_t {
   int reason;
   time_t time;
 };
 
-typedef std::unordered_map<std::string, torrent> torrent_list;
+typedef std::unordered_map<std::string, torrent_t> torrent_list;
 typedef std::unordered_map<std::string, user_ptr> user_list;
 typedef std::unordered_map<std::string, std::string> params_map_t;
 

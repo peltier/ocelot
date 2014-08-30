@@ -123,7 +123,7 @@ std::string ReportController::get_response() {
     
     << style_sheet();
     
-  } else if (action == "user") {
+  } else if (action == "user_t") {
     std::string key = params["key"];
     if (key == "") {
       output << "Invalid action\n";

@@ -3,9 +3,9 @@
 
 #include <mutex>
 
-class user {
+class User {
   public:
-    user(int uid, bool leech, bool protect);
+    User(int uid, bool leech, bool protect);
     int get_id();
     bool is_protected();
     void set_protected(bool status);

@@ -65,7 +65,7 @@ void mysql::load_torrents(torrent_list &torrents) {
       std::string info_hash;
       res[i][1].to_string(info_hash);
 
-      torrent t;
+      torrent_t t;
       t.id = res[i][0];
       if (res[i][2].compare(one) == 0) {
         t.free_torrent = FREE;
@@ -91,7 +91,7 @@ void mysql::load_users(user_list &users) {
       res[i][2].to_string(passkey);
       bool protect_ip = res[i][3].compare("1") != 0;
 
-      user_ptr u(new user(res[i][0], res[i][1], protect_ip));
+      user_ptr u(new User(res[i][0], res[i][1], protect_ip));
       users.insert(std::pair<std::string, user_ptr>(passkey, u));
     }
   }
@@ -106,7 +106,7 @@ void mysql::load_tokens(torrent_list &torrents) {
       res[i][1].to_string(info_hash);
       torrent_list::iterator it = torrents.find(info_hash);
       if (it != torrents.end()) {
-        torrent &tor = it->second;
+        torrent_t &tor = it->second;
         tor.tokened_users.insert(res[i][0]);
       }
     }

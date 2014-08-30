@@ -12,9 +12,9 @@
 //
 class DeletionReasonsCache {
   public:
-    static std::vector<del_message> find(std::string decoded_info_hash) {
+    static std::vector<deletion_message_t> find(std::string decoded_info_hash) {
       std::lock_guard< std::mutex > lock( m_deletion_reasons_mutex );
-      std::vector<del_message> result_set;
+      std::vector<deletion_message_t> result_set;
       
       if( m_deletion_reasons.count( decoded_info_hash ) > 0 ) {
         result_set.push_back( m_deletion_reasons[decoded_info_hash] );
@@ -23,15 +23,15 @@ class DeletionReasonsCache {
       return result_set;
     }
   
-    static std::unordered_map<std::string, del_message> & get() {
+    static std::unordered_map<std::string, deletion_message_t> & get() {
       return m_deletion_reasons;
     }
     
-    static void set( std::unordered_map<std::string, del_message> & delete_map ) {
+    static void set( std::unordered_map<std::string, deletion_message_t> & delete_map ) {
       m_deletion_reasons = delete_map;
     }
   private:
-    static std::unordered_map<std::string, del_message> m_deletion_reasons;
+    static std::unordered_map<std::string, deletion_message_t> m_deletion_reasons;
     static std::mutex m_deletion_reasons_mutex;
 };
 
@@ -87,9 +87,9 @@ class UserListCache {
 //
 class TorrentListCache {
   public:
-    static std::vector<torrent> find(std::string decoded_info_hash) {
+    static std::vector<torrent_t> find(std::string decoded_info_hash) {
       std::lock_guard< std::mutex > lock( m_torrent_list_mutex );
-      std::vector<torrent> result_set;
+      std::vector<torrent_t> result_set;
       
       if( m_torrent_list.count( decoded_info_hash ) > 0 ) {
         result_set.push_back( m_torrent_list[decoded_info_hash] );

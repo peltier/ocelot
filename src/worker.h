@@ -35,7 +35,7 @@ class worker {
     torrent_list m_torrents_list;
     user_list m_users_list;
     std::vector<std::string> m_whitelist;
-    std::unordered_map<std::string, del_message> m_del_reasons;
+    std::unordered_map<std::string, deletion_message_t> m_del_reasons;
     config * m_conf;
     mysql * m_db;
     tracker_status m_status;

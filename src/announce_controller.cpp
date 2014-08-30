@@ -195,7 +195,7 @@ std::string AnnounceController::get_response() {
     // New peer on this torrent (maybe)
     update_torrent = true;
     if (inserted) {
-      // If this was an existing peer, the user pointer will be corrected later
+      // If this was an existing peer, the user_t pointer will be corrected later
       p->user = u;
     }
     p->first_announced = current_time;
@@ -330,7 +330,7 @@ std::string AnnounceController::get_response() {
     } else {
       record_ip = ip;
     }
-    db->record_peer(record_str, record_ip, peer_id, headers["user-agent"]);
+    db->record_peer(record_str, record_ip, peer_id, headers["user_t-agent"]);
   } else {
     record << '(' << tor.id << ',' << (current_time - p->first_announced) << ',' << p->announces << ',';
     std::string record_str = record.str();
@@ -478,7 +478,7 @@ std::string AnnounceController::get_response() {
     }
   }
   
-  // Correct the stats for the old user if the peer's user link has changed
+  // Correct the stats for the old user_t if the peer's user_t link has changed
   if (p->user != u) {
     if (!stopped_torrent) {
       if (left > 0) {

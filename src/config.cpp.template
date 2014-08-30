@@ -27,6 +27,6 @@ config::config() {
   site_password = "********************************"; // MUST BE 32 CHARS
   site_path = ""; // If the site is not running under the domain root
 
-  // Key to use for /report?get=stats and /report?get=user&key=<passkey> requests
+  // Key to use for /report?get=stats and /report?get=user_t&key=<passkey> requests
   report_password = "********************************"; // MUST BE 32 CHARS
 }

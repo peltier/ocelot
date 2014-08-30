@@ -15,7 +15,7 @@ std::string ScrapeController::get_response() {
     if (tor == torrent_list.end()) {
       continue;
     }
-    torrent *t = &(tor->second);
+    torrent_t *t = &(tor->second);
     
     output += std::to_string(infohash.length());
     output += ':';

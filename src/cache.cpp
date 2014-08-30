@@ -1,7 +1,7 @@
 #include "cache.h"
 
 // Deletion Cache
-std::unordered_map<std::string, del_message>  DeletionReasonsCache::m_deletion_reasons;
+std::unordered_map<std::string, deletion_message_t>  DeletionReasonsCache::m_deletion_reasons;
 std::mutex DeletionReasonsCache::m_deletion_reasons_mutex;
 
 // Whitelist Cache
