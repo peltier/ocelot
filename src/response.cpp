@@ -7,6 +7,10 @@
 #include "response.h"
 #include "misc_functions.h"
 
+std::string html(const std::string &body) {
+  return response(body, false, true);
+}
+
 std::string response(const std::string &body, bool gzip, bool html) {
   const std::string head = response_head(gzip, html);
   std::string out;

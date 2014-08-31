@@ -8,11 +8,20 @@
 #include <set>
 #include <memory>
 #include <mutex>
+#include <atomic>
 
-class user;
-typedef std::shared_ptr<user> user_ptr;
+#include <boost/date_time/posix_time/posix_time.hpp>
 
-typedef struct {
+#define BENCHMARK(x) \
+  auto before = boost::posix_time::microsec_clock::local_time(); \
+  x; \
+  auto after = boost::posix_time::microsec_clock::local_time(); \
+  std::cout << "BENCHMARK: " << ( after - before ).total_microseconds() << " μs" << std::endl;
+
+class User;
+typedef std::shared_ptr<User> user_ptr;
+
+struct peer {
   unsigned int port;
   int64_t uploaded;
   int64_t downloaded;
@@ -26,13 +35,14 @@ typedef struct {
   user_ptr user;
   std::string ip_port;
   std::string ip;
-} peer;
+};
 
+// TODO: Let's put this in a Trie, no?
 typedef std::map<std::string, peer> peer_list;
 
 enum freetype { NORMAL, FREE, NEUTRAL };
 
-typedef struct {
+struct torrent_t {
   int id;
   int64_t balance;
   int completed;
@@ -42,7 +52,7 @@ typedef struct {
   peer_list leechers;
   std::string last_selected_seeder;
   std::set<int> tokened_users;
-} torrent;
+};
 
 enum {
   DUPE, // 0
@@ -70,30 +80,29 @@ enum {
   AUDIENCE // 22
 };
 
-typedef struct {
+struct deletion_message_t {
   int reason;
   time_t time;
-} del_message;
+};
 
-typedef std::unordered_map<std::string, torrent> torrent_list;
+typedef std::unordered_map<std::string, torrent_t> torrent_list;
 typedef std::unordered_map<std::string, user_ptr> user_list;
 typedef std::unordered_map<std::string, std::string> params_map_t;
 
-struct stats {
-  std::mutex mutex;
-  unsigned int open_connections;
-  uint64_t opened_connections;
-  uint64_t connection_rate;
-  unsigned int leechers;
-  unsigned int seeders;
-  uint64_t announcements;
-  uint64_t succ_announcements;
-  uint64_t scrapes;
-  uint64_t bytes_read;
-  uint64_t bytes_written;
-  time_t start_time;
+struct stats_t {
+  std::atomic<uint64_t> open_connections;
+  std::atomic<uint64_t> opened_connections;
+  std::atomic<uint64_t> connection_rate;
+  std::atomic<uint64_t> leechers;
+  std::atomic<uint64_t> seeders;
+  std::atomic<uint64_t> announcements;
+  std::atomic<uint64_t> succ_announcements;
+  std::atomic<uint64_t> scrapes;
+  std::atomic<uint64_t> bytes_read;
+  std::atomic<uint64_t> bytes_written;
+  std::atomic<time_t> start_time;
 };
 
-extern struct stats stats;
+extern struct stats_t stats;
 
 #endif

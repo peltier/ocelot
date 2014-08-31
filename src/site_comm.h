@@ -15,8 +15,16 @@ using boost::asio::ip::tcp;
 
 class site_comm {
   public:
-    site_comm(config &conf);
+    site_comm();
     ~site_comm();
+  
+    static site_comm * get_instance() {
+      if( !m_site_comm_instance ) {
+        m_site_comm_instance = new site_comm();
+      }
+      
+      return m_site_comm_instance;
+    }
 
     bool verbose_flush;
     bool all_clear();
@@ -25,7 +33,9 @@ class site_comm {
     void do_flush_tokens();
 
   private:
-    config m_conf;
+    static site_comm * m_site_comm_instance;
+  
+    config * m_conf;
     std::mutex m_expire_queue_lock;
     std::string m_expire_token_buffer;
     std::queue<std::string> m_token_queue;

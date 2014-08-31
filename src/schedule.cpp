@@ -7,14 +7,15 @@
 #include "logger.h"
 
 
-schedule::schedule(worker* worker_obj, config* conf_obj, mysql * db_obj, site_comm * sc_obj)
-  : m_worker(worker_obj), m_conf(conf_obj), m_db(db_obj), m_site_comm(sc_obj)
+schedule::schedule(worker* worker_obj)
+  : m_worker(worker_obj), m_conf( config::get_instance() ), m_db( mysql::get_instance() ), m_site_comm( site_comm::get_instance() )
 {
   m_counter = 0;
   m_last_opened_connections = 0;
 
   m_next_reap_peers = time(NULL) + m_conf->reap_peers_interval + 40;
 }
+
 //---------- Schedule - gets called every schedule_interval seconds
 void schedule::handle(ev::timer &watcher, int events_flags) {
   stats.connection_rate = (stats.opened_connections - m_last_opened_connections) / m_conf->schedule_interval;

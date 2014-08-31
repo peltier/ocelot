@@ -7,9 +7,23 @@
 #include <queue>
 #include <mutex>
 
+#include "config.h"
+
 class mysql {
   public:
     mysql(std::string mysql_db, std::string mysql_host, std::string username, std::string password);
+  
+    ~mysql() { if(m_mysql_instance) delete m_mysql_instance; }
+  
+    static mysql * get_instance() {
+      if( !m_mysql_instance ) {
+        auto config = config::get_instance();
+        m_mysql_instance = new mysql(config->mysql_db, config->mysql_host, config->mysql_username, config->mysql_password);
+      }
+      
+      return m_mysql_instance;
+    }
+  
     bool connected();
     void load_torrents(torrent_list &torrents);
     void load_users(user_list &users);
@@ -41,6 +55,8 @@ class mysql {
     std::mutex m_torrent_list_mutex;
 
   private:
+    static mysql * m_mysql_instance;
+  
     mysqlpp::Connection m_connection;
     std::string m_update_user_buffer;
     std::string m_update_torrent_buffer;

@@ -1,53 +1,66 @@
 #include "user.h"
 
-user::user(int uid, bool leech, bool protect)
+User::User(int uid, bool leech, bool protect)
   : m_id(uid), m_leechstatus(leech), m_protect_ip(protect)
 {
   m_stats.leeching = 0;
   m_stats.seeding = 0;
 }
 
-int user::get_id() {
+// TODO: Let's find a way to not lock all the time, yeah?
+
+int User::get_id() {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   return m_id;
 }
 
-bool user::is_protected() {
+bool User::is_protected() {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   return m_protect_ip;
 }
 
-void user::set_protected(bool status) {
+void User::set_protected(bool status) {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   m_protect_ip = status;
 }
 
-bool user::can_leech() {
+bool User::can_leech() {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   return m_leechstatus;
 }
 
-void user::set_leechstatus(bool status) {
+void User::set_leechstatus(bool status) {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   m_leechstatus = status;
 }
 
 // m_Stats methods
-unsigned int user::get_leeching() {
+unsigned int User::get_leeching() {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   return m_stats.leeching;
 }
 
-unsigned int user::get_seeding() {
+unsigned int User::get_seeding() {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   return m_stats.seeding;
 }
 
-void user::decr_leeching() {
+void User::decr_leeching() {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   m_stats.leeching--;
 }
 
-void user::decr_seeding() {
+void User::decr_seeding() {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   m_stats.seeding--;
 }
 
-void user::incr_leeching() {
+void User::incr_leeching() {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   m_stats.leeching++;
 }
 
-void user::incr_seeding() {
+void User::incr_seeding() {
+  std::lock_guard< std::mutex > lock(m_stats_mutex);
   m_stats.seeding++;
 }

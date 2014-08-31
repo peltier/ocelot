@@ -12,44 +12,39 @@
 #include "site_comm.h"
 #include "ocelot.h"
 #include "request.h"
+#include "db.h"
 
 enum tracker_status { OPEN, PAUSED, CLOSING }; // tracker status
 
 class worker {
   public:
-    worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, mysql * db_obj, site_comm * sc);
+    worker(torrent_list &torrents, user_list &users, std::vector<std::string> &_whitelist, config * conf_obj, site_comm * sc);
   
-    std::string on_request(const Request &request);
-    std::string announce(torrent &tor, user_ptr &u, params_map_t &params, params_map_t &headers, std::string &ip);
-    std::string scrape(const std::vector<std::string> &infohashes, params_map_t &headers);
-    std::string update(params_map_t &params);
+    std::string on_request(Request request);
 
     bool signal(int sig);
 
     tracker_status get_status() { return m_status; }
 
     void start_reaper();
+  
+    static std::mutex m_ustats_lock;
+    static std::mutex m_del_reasons_lock;
 
   private:
     torrent_list m_torrents_list;
     user_list m_users_list;
     std::vector<std::string> m_whitelist;
-    std::unordered_map<std::string, del_message> m_del_reasons;
+    std::unordered_map<std::string, deletion_message_t> m_del_reasons;
     config * m_conf;
     mysql * m_db;
     tracker_status m_status;
     time_t m_cur_time;
     site_comm * m_site_comm;
 
-    std::mutex m_del_reasons_lock;
-    std::mutex m_ustats_lock;
-
     void do_start_reaper();
     void reap_peers();
     void reap_del_reasons();
-    std::string get_del_reason(int code);
-    peer_list::iterator add_peer(peer_list &peer_list, std::string &peer_id);
-    bool peer_is_visible(user_ptr &u, peer *p);
 
 };
 

@@ -3,10 +3,12 @@
 //
 // Get the request action based on the m_input request string
 //
-action_t Request::get_action() const {
-  // Lock guard for stats.. yuk!
-  std::lock_guard<std::mutex> lock(stats.mutex);
-  
+action_t Request::get_action() {
+  // Check action cache
+  if(m_action_cache_saved) {
+    return m_action_cache;
+  }
+
   // This is the beginning index for action
   int position = 38;
   
@@ -14,50 +16,67 @@ action_t Request::get_action() const {
   switch ( m_input[position] ) {
     case 'a':
       stats.announcements++;
-      return ANNOUNCE;
+      m_action_cache = ANNOUNCE;
+      break;
     case 's':
       stats.scrapes++;
-      return SCRAPE;
+      m_action_cache = SCRAPE;
+      break;
     case 'u':
-      return UPDATE;
+      m_action_cache = UPDATE;
+      break;
     case 'r':
-      return REPORT;
+      m_action_cache = REPORT;
+      break;
     default:
-      return INVALID;
+      m_action_cache = INVALID;
+      break;
   }
+  
+  // Set Cache
+  m_action_cache_saved = true;
+  
+  return m_action_cache;
 }
 
 
 //
 // Get the pass key from request string
 //
-std::string Request::get_pass_key() const {
+std::string Request::get_passkey() {
+  // Check passkey cache
+  if( !m_pass_key_cache.empty() ) {
+    return m_pass_key_cache;
+  }
+
   // Get the passkey
-  std::string passkey;
-  passkey.reserve(32);
+  m_pass_key_cache.reserve(32);
   if (m_input[37] != '/') {
     return "";
   }
   
   for (size_t pos = 5; pos < 37; pos++) {
-    passkey.push_back(m_input[pos]);
+    m_pass_key_cache.push_back(m_input[pos]);
   }
   
-  return passkey;
+  return m_pass_key_cache;
 }
 
 //
 // Get all the request params from a request string
 //
-params_map_t Request::get_request_params() const {
-  params_map_t request_params;
+params_map_t Request::get_params() {
+  // Check params cache
+  if( !m_params_cache.empty() ) {
+    return m_params_cache;
+  }
   
   // Get the beginning of the params list
   auto index = m_input.find('?');
   
   // Check for lack of params
   if( index == std::string::npos ) {
-    return request_params;
+    return m_params_cache;
   }
   
   // Valid, so we'll advance the index passed `?`
@@ -100,14 +119,18 @@ params_map_t Request::get_request_params() const {
     }
     
     // Save the key / value pair
-    request_params[ key_buffer ] = value_buffer;
+    m_params_cache[ key_buffer ] = value_buffer;
   }
   
-  return request_params;
+  return m_params_cache;
 }
 
 // Extracted from worker::worker. Not changed
-params_map_t Request::get_request_headers() const {
+params_map_t Request::get_headers() {
+  // Check headers cache
+  if( !m_headers_cache.empty() ) {
+    return m_headers_cache;
+  }
   
   auto pos = m_input.find( "HTTP/1.1" );
   
@@ -115,7 +138,6 @@ params_map_t Request::get_request_headers() const {
   pos += 9;
   
   // Parse headers
-  params_map_t headers;
   bool parsing_key = true;
   bool found_data = false;
   std::string key;
@@ -131,7 +153,7 @@ params_map_t Request::get_request_headers() const {
       if (found_data) {
         found_data = false; // dodge for getting around \r\n or just \n
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-        headers[key] = value;
+        m_headers_cache[key] = value;
         key.clear();
         value.clear();
       }
@@ -145,11 +167,15 @@ params_map_t Request::get_request_headers() const {
     }
   }
   
-  return headers;
+  return m_headers_cache;
 }
 
-std::vector<std::string> Request::get_info_hashes() const {
-  std::vector<std::string> info_hashes;
+std::vector<std::string> Request::get_info_hashes() {
+  // Check headers cache
+  if( !m_info_hash_cache.empty() ) {
+    return m_info_hash_cache;
+  }
+
   size_t position = 0;
   
   // This is assuming you can have multiple info_hashes in one SCRAP request
@@ -180,10 +206,10 @@ std::vector<std::string> Request::get_info_hashes() const {
     }
     
     // Save the info_hash value
-    info_hashes.push_back( info_hash_buffer );
+    m_info_hash_cache.push_back( info_hash_buffer );
     // Increment
     position = value_index;
   }
   
-  return info_hashes;
+  return m_info_hash_cache;
 }

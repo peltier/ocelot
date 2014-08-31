@@ -16,7 +16,7 @@ class Request {
     // Constructor
     //
     Request(std::string input, std::string ip_address)
-      : m_input(input), m_ip_address(ip_address) {}
+      : m_input(input), m_ip_address(ip_address), m_action_cache_saved(false) {}
   
     std::string get_raw_request() const {
       return m_input;
@@ -34,25 +34,34 @@ class Request {
     //
     // Get the request action based on the m_input request string
     //
-    action_t get_action() const;
+    action_t get_action();
     
     //
     // Get the pass key from request string
     //
-    std::string get_pass_key() const;
+    std::string get_passkey();
     
     //
     // Get all the request params from a request string
     //
-    params_map_t get_request_params() const;
+    params_map_t get_params();
   
-    params_map_t get_request_headers() const;
+    params_map_t get_headers();
     
-    std::vector<std::string> get_info_hashes() const;
-  
+    std::vector<std::string> get_info_hashes();
+
   private:
     std::string m_input;
     std::string m_ip_address;
+  
+    // Cache Values
+    bool m_action_cache_saved;
+    action_t m_action_cache;
+    std::string m_pass_key_cache;
+    params_map_t m_params_cache;
+    params_map_t m_headers_cache;
+    std::vector< std::string > m_info_hash_cache;
+
 };
 
 #endif

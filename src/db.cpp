@@ -14,6 +14,8 @@
 
 #define DB_LOCK_TIMEOUT 50
 
+mysql * mysql::m_mysql_instance = nullptr;
+
 mysql::mysql(std::string mysql_m_db, std::string mysql_host, std::string username, std::string password) :
   m_db(mysql_m_db), m_server(mysql_host), m_db_user(username), m_password(password),
   m_u_active(false), m_t_active(false), m_p_active(false), m_s_active(false), m_tok_active(false)
@@ -63,7 +65,7 @@ void mysql::load_torrents(torrent_list &torrents) {
       std::string info_hash;
       res[i][1].to_string(info_hash);
 
-      torrent t;
+      torrent_t t;
       t.id = res[i][0];
       if (res[i][2].compare(one) == 0) {
         t.free_torrent = FREE;
@@ -89,7 +91,7 @@ void mysql::load_users(user_list &users) {
       res[i][2].to_string(passkey);
       bool protect_ip = res[i][3].compare("1") != 0;
 
-      user_ptr u(new user(res[i][0], res[i][1], protect_ip));
+      user_ptr u(new User(res[i][0], res[i][1], protect_ip));
       users.insert(std::pair<std::string, user_ptr>(passkey, u));
     }
   }
@@ -104,7 +106,7 @@ void mysql::load_tokens(torrent_list &torrents) {
       res[i][1].to_string(info_hash);
       torrent_list::iterator it = torrents.find(info_hash);
       if (it != torrents.end()) {
-        torrent &tor = it->second;
+        torrent_t &tor = it->second;
         tor.tokened_users.insert(res[i][0]);
       }
     }
@@ -186,7 +188,7 @@ void mysql::flush() {
 
 void mysql::flush_users() {
   std::string sql;
-  std::unique_lock<std::mutex> uq_lock(m_user_queue_lock);
+  std::lock_guard<std::mutex> uq_lock(m_user_queue_lock);
   size_t qsize = m_user_queue.size();
   if (m_verbose_flush || qsize > 0) {
     std::cout << "User flush queue size: " << qsize << std::endl;
