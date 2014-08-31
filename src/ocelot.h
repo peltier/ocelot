@@ -105,4 +105,6 @@ struct stats_t {
 
 extern struct stats_t stats;
 
+int ocelot_main(int argc, char **argv);
+
 #endif

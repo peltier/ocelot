@@ -62,6 +62,8 @@ std::string worker::on_request( Request request ) {
     return error("GET string too short");
   }
   
+  std::cout << request.get_raw_request() << std::endl;
+  
   // Get the announce url passkey
   std::string passkey = request.get_passkey();
   

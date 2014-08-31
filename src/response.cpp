@@ -47,9 +47,9 @@ std::string response_head(bool gzip, bool html) {
 }
 
 std::string error(const std::string &err) {
-  return response("d14:failure reason" + std::to_string( err.length() ) + ':' + err + "12:min intervali5400e8:intervali5400ee", false, false);
+  return response("d14:failure reason" + std::to_string( err.length() ) + ':' + err + "12:min intervali5400e8:intervali5400ee\r\n\r\n", false, false);
 }
 
 std::string warning(const std::string &msg) {
-  return "15:warning message" + std::to_string( msg.length() ) + ':' + msg;
+  return "15:warning message" + std::to_string( msg.length() ) + ':' + msg + "\r\n\r\n";
 }

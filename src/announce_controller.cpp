@@ -9,6 +9,16 @@
 //
 // Private
 //
+std::string AnnounceController::before__authenticate() {
+  auto user_vec = UserListCache::find( m_request.get_passkey() );
+  
+  if( user_vec.empty() ) {
+    return error("Authentication failure");
+  }
+  
+  return "";
+}
+
 std::string AnnounceController::before__validate_torrent() {
   auto params = m_request.get_params();
   
@@ -53,6 +63,12 @@ bool peer_is_visible(user_ptr &u, peer *p) {
 // Public
 //
 std::string AnnounceController::get_response() {
+
+  // Before we announce, let's authrenticate
+  auto auth_error = before__authenticate();
+  if( !auth_error.empty() ) {
+    return auth_error;
+  }
   
   // Before we announce, let's validate the torrent
   auto torrent_error = before__validate_torrent();
@@ -71,6 +87,8 @@ std::string AnnounceController::get_response() {
   auto params = m_request.get_params();
   auto headers = m_request.get_headers();
   auto ip = m_request.get_ip_address();
+  
+  std::cout << m_request.get_passkey() << std::endl;
   
   // We have validated, so we should be good to go here.
   auto u = UserListCache::find( m_request.get_passkey() ).front();

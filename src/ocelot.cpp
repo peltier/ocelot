@@ -19,7 +19,7 @@ static void sig_handler(int sig) {
   }
 }
 
-int main(int argc, char **argv) {
+int ocelot_main(int argc, char **argv) {
   // we don't use printf so make cout/cerr a little bit faster
   std::ios_base::sync_with_stdio(false);
   
