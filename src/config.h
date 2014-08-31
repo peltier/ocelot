@@ -10,7 +10,6 @@ class config {
     static config * get_instance() {
       if( !m_config_instance ) {
         m_config_instance = new config();
-        std::cout << "racing!!" << std::endl;
       }
       
       return m_config_instance;
