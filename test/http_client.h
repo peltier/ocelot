@@ -45,13 +45,20 @@ namespace http {
       
       boost::asio::write(socket, request);
       
-      boost::asio::streambuf response;
-      std::istream response_stream(&response);
+      boost::asio::streambuf response_buffer;
+      std::string response_string;
       
-      boost::asio::read_until(socket, response, "\r\n\r\n");
+      while (boost::asio::read(socket, response_buffer, boost::asio::transfer_at_least(1), error)) {
+        std::istream response_stream(&response_buffer);
+        response_string += std::string( (std::istreambuf_iterator<char>(response_stream)),
+                                std::istreambuf_iterator<char>() );
+      }
       
-      return std::string( (std::istreambuf_iterator<char>(response_stream)),
-                           std::istreambuf_iterator<char>() );
+      if (error != boost::asio::error::eof) {
+        throw boost::system::system_error(error);
+      }
+      
+      return response_string;
 
     } catch (std::exception &e) {
       std::cout << "Exception: " << e.what() << std::endl;
