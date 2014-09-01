@@ -88,8 +88,6 @@ std::string AnnounceController::get_response() {
   auto headers = m_request.get_headers();
   auto ip = m_request.get_ip_address();
   
-  std::cout << m_request.get_passkey() << std::endl;
-  
   // We have validated, so we should be good to go here.
   auto u = UserListCache::find( m_request.get_passkey() ).front();
   

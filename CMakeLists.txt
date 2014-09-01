@@ -5,7 +5,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 # Project Info
 #
 PROJECT(ocelot)
-SET(EXECUTABLE_NAME ocelot)
+SET(EXECUTABLE_NAME ocelot_server)
+SET(LIBRARY_NAME ocelot)
 SET(EXECUTABLE_TESTS_NAME ocelot_tests)
 
 #
@@ -99,48 +100,15 @@ IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 ENDIF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 #
-# Test Deps
-#
-FIND_LIBRARY(
-  GTEST_LIBS
-  NAMES
-  gtest
-  HINTS ${GTEST_PATH} "${GTEST_PATH}/lib" "${GTEST_PATH}/lib/.libs"
-  )
-
-FIND_LIBRARY(
-  GTEST_MAIN_LIBS
-  NAMES
-  gtest_main
-  HINTS ${GTEST_PATH} "${GTEST_PATH}/lib" "${GTEST_PATH}/lib/.libs"
-  )
-
-FIND_LIBRARY(
-  GMOCK_LIBS
-  NAMES
-  gmock
-  HINTS ${GMOCK_PATH} "${GMOCK_PATH}/lib" "${GMOCK_PATH}/lib/.libs"
-  )
-
-FIND_LIBRARY(
-  GMOCK_MAIN_LIBS
-  NAMES
-  gmock_main
-  HINTS ${GMOCK_PATH} "${GMOCK_PATH}/lib" "${GMOCK_PATH}/lib/.libs"
-  )
-
-#
 # Include
 #
 INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/src")
 INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/test")
 INCLUDE_DIRECTORIES("/usr/local/include")
 INCLUDE_DIRECTORIES("/usr/include/mysql")
-INCLUDE_DIRECTORIES("${GTEST_PATH}/include")
-INCLUDE_DIRECTORIES("${GMOCK_PATH}/include")
 
 #
-# Project Source and Executable
+# Project Lib
 #
 FILE(
   GLOB_RECURSE
@@ -148,13 +116,30 @@ FILE(
   src/*
   )
 
+LIST(REMOVE_ITEM SRC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+
+ADD_LIBRARY(
+  ${LIBRARY_NAME}
+  ${SRC_FILES}
+  )
+
+#
+# Project Runner
+#
+FILE(
+  GLOB_RECURSE
+  RUNNER_FILES
+  src/main.cpp
+  )
+
 ADD_EXECUTABLE(
   ${EXECUTABLE_NAME}
-  ${SRC_FILES}
+  ${RUNNER_FILES}
   )
 
 TARGET_LINK_LIBRARIES(
   ${EXECUTABLE_NAME}
+  ${LIBRARY_NAME}
   ${EV_LIBS}
   ${MYSQLPP_LIBS}
   ${BOOST_IOSTREAMS_LIBS}
@@ -166,30 +151,70 @@ TARGET_LINK_LIBRARIES(
 #
 # Project Test and Test Runner
 #
-FILE(
-  GLOB_RECURSE
-  TEST_FILES
-  test/*
-  src/*
-  )
+IF (BUILD_TESTING)
 
-LIST(REMOVE_ITEM TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
+  #
+  # Test Deps
+  #
+  FIND_LIBRARY(
+    GTEST_LIBS
+    NAMES
+    gtest
+    HINTS ${GTEST_PATH} "${GTEST_PATH}/lib" "${GTEST_PATH}/lib/.libs"
+    )
 
-ADD_EXECUTABLE(
-  ${EXECUTABLE_TESTS_NAME}
-  ${TEST_FILES}
-  )
+  FIND_LIBRARY(
+    GTEST_MAIN_LIBS
+    NAMES
+    gtest_main
+    HINTS ${GTEST_PATH} "${GTEST_PATH}/lib" "${GTEST_PATH}/lib/.libs"
+    )
 
-TARGET_LINK_LIBRARIES(
-  ${EXECUTABLE_TESTS_NAME}
-  ${EV_LIBS}
-  ${MYSQLPP_LIBS}
-  ${BOOST_IOSTREAMS_LIBS}
-  ${BOOST_SYSTEM_LIBS}
-  ${GTEST_LIBS}
-  ${GTEST_MAIN_LIBS}
-  ${GMOCK_LIBS}
-  ${GMOCK_MAIN_LIBS}
-  ${LIBC++}
-  ${PTHREAD}
-  )
+  FIND_LIBRARY(
+    GMOCK_LIBS
+    NAMES
+    gmock
+    HINTS ${GMOCK_PATH} "${GMOCK_PATH}/lib" "${GMOCK_PATH}/lib/.libs"
+    )
+
+  FIND_LIBRARY(
+    GMOCK_MAIN_LIBS
+    NAMES
+    gmock_main
+    HINTS ${GMOCK_PATH} "${GMOCK_PATH}/lib" "${GMOCK_PATH}/lib/.libs"
+    )
+
+  #
+  # Test Includes
+  #
+  INCLUDE_DIRECTORIES("${GTEST_PATH}/include")
+  INCLUDE_DIRECTORIES("${GMOCK_PATH}/include")
+
+  FILE(
+    GLOB_RECURSE
+    TEST_FILES
+    test/*
+    )
+
+  ADD_EXECUTABLE(
+    ${EXECUTABLE_TESTS_NAME}
+    EXCLUDE_FROM_ALL
+    ${TEST_FILES}
+    )
+
+  TARGET_LINK_LIBRARIES(
+    ${EXECUTABLE_TESTS_NAME}
+    ${LIBRARY_NAME}
+    ${EV_LIBS}
+    ${MYSQLPP_LIBS}
+    ${BOOST_IOSTREAMS_LIBS}
+    ${BOOST_SYSTEM_LIBS}
+    ${GTEST_LIBS}
+    ${GTEST_MAIN_LIBS}
+    ${GMOCK_LIBS}
+    ${GMOCK_MAIN_LIBS}
+    ${LIBC++}
+    ${PTHREAD}
+    )
+
+ENDIF(BUILD_TESTING)

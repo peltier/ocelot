@@ -164,8 +164,9 @@ void connection_middleman::handle_read(ev::io &watcher, int events_flags) {
       inet_ntop(AF_INET, &(m_client_address.sin_addr), ip, INET_ADDRSTRLEN);
       std::string ip_str = ip;
       
-      
-      BENCHMARK( m_response = m_worker->on_request( Request(m_request, ip_str) ) );
+      //BENCHMARK(
+        m_response = m_worker->on_request( Request(m_request, ip_str) );
+      //);
 
     }
 
