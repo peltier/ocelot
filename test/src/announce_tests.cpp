@@ -6,7 +6,7 @@ TEST(AnnounceTests, can_make_successful_announce) {
   
   auto output = "d8:completei1e10:downloadedi0e10:incompletei0e8:intervali1801e12:min intervali1800e5:peers0:e";
   
-  auto response = http::get("localhost", 34000, successful_announce);
+  auto response = http::get(successful_announce);
   
   EXPECT_TRUE( response.find( output ) != std::string::npos );
 }
@@ -17,7 +17,7 @@ TEST(AnnounceTests, cannot_make_unauthorized_announce) {
   
   auto output = "d14:failure reason22:Authentication failure12:min intervali5400e8:intervali5400ee";
   
-  auto response = http::get("localhost", 34000, bad_announce);
+  auto response = http::get(bad_announce);
   
   EXPECT_TRUE( response.find( output ) != std::string::npos );
 }

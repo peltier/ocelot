@@ -8,10 +8,15 @@
 #include <sstream>
 #include <boost/asio.hpp>
 
+#include "config.h"
+
 using boost::asio::ip::tcp;
 
 namespace http {
-  static std::string get( std::string host, int port, std::string path ) {
+  static std::string get(std::string path ) {
+  
+    std::string host = config::get_instance()->host;
+    int port = config::get_instance()->port;
 
     try {
       boost::asio::io_service io_service;
