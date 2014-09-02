@@ -3,7 +3,7 @@
 #include "worker.h"
 
 std::string UpdateController::before__authenticate() {
-  if ( m_request.get_passkey() == m_config->site_password) {
+  if ( m_request.get_passkey() != m_config->site_password ) {
     return error("Authentication failure");
   }
   
@@ -27,7 +27,7 @@ std::string UpdateController::get_response() {
     
   } else if (params["action"] == "add_torrent") {
     
-    add_torrent();
+    return add_torrent();
     
   } else if (params["action"] == "update_torrent") {
     
@@ -51,7 +51,7 @@ std::string UpdateController::get_response() {
     
   } else if (params["action"] == "add_user") {
     
-    add_user();
+    return add_user();
     
   } else if (params["action"] == "remove_user") {
     
@@ -108,32 +108,44 @@ void UpdateController::change_passkey() {
   }
 }
 
-void UpdateController::add_torrent() {
+std::string UpdateController::add_torrent() {
   
   auto params = m_request.get_params();
   auto ref_torrent_list = TorrentListCache::get();
 
-  torrent_t *t;
+  torrent_t t;
+  bool save_new_torrent = false;
   std::string info_hash = params["info_hash"];
   info_hash = hex_decode(info_hash);
-  auto i = ref_torrent_list.find(info_hash);
-  if (i == ref_torrent_list.end()) {
-    t = &ref_torrent_list[info_hash];
-    t->id = std::stol(params["id"]);
-    t->balance = 0;
-    t->completed = 0;
-    t->last_selected_seeder = "";
+  auto torrent_vec = TorrentListCache::find(info_hash);
+  
+  if ( torrent_vec.empty() ) {
+    t.id = std::stol(params["id"]);
+    t.balance = 0;
+    t.completed = 0;
+    t.last_selected_seeder = "";
+    save_new_torrent = true;
   } else {
-    t = &i->second;
+    t = torrent_vec.front();
   }
+  
   if (params["freetorrent"] == "0") {
-    t->free_torrent = NORMAL;
+    t.free_torrent = NORMAL;
   } else if (params["freetorrent"] == "1") {
-    t->free_torrent = FREE;
+    t.free_torrent = FREE;
   } else {
-    t->free_torrent = NEUTRAL;
+    t.free_torrent = NEUTRAL;
   }
-  std::cout << "Added torrent " << t->id << ". FL: " << t->free_torrent << " " << params["freetorrent"] << std::endl;
+  
+  if( save_new_torrent ) {
+    TorrentListCache::insert( info_hash, t );
+  }
+  
+  auto success_message = "Added torrent " + std::to_string(t.id) + ". FL: " + std::to_string(t.free_torrent) + " " + params["freetorrent"];
+  
+  Logger::info( success_message );
+  
+  return success_message;
 }
 
 void UpdateController::update_torrent() {
@@ -255,7 +267,7 @@ void UpdateController::remove_token() {
   }
 }
 
-void UpdateController::add_user() {
+std::string UpdateController::add_user() {
 
   auto params = m_request.get_params();
   auto ref_user_list = UserListCache::get();
@@ -265,11 +277,20 @@ void UpdateController::add_user() {
   auto u = ref_user_list.find(passkey);
   if (u == ref_user_list.end()) {
     bool protect_ip = params["visible"] == "0";
-    user_ptr u(new User(userid, true, protect_ip));
-    ref_user_list.insert(std::pair<std::string, user_ptr>(passkey, u));
-    std::cout << "Added user_t " << passkey << " with id " << userid << std::endl;
+    user_ptr new_user(new User(userid, true, protect_ip));
+    
+    UserListCache::insert(passkey, new_user);
+    
+    auto success_message = "Added user_t " + passkey + " with id " + std::to_string(userid);
+    
+    Logger::info(success_message);
+    return success_message;
+    
   } else {
-    std::cout << "Tried to add already known user_t " << passkey << " with id " << userid << std::endl;
+    auto error_message = "Tried to add already known user_t " + passkey + " with id " + std::to_string(userid);
+
+    Logger::error(error_message);
+    return error_message;
   }
 }
 

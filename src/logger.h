@@ -23,7 +23,7 @@ class Logger {
     }
   
     static void warn( std::string message ) {
-      singleton_logger.log_message( "[WARN]" + message , LogLevel::WARN );
+      singleton_logger.log_message( "[WARN] " + message , LogLevel::WARN );
     }
   
     static void error( std::string message ) {

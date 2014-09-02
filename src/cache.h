@@ -72,6 +72,14 @@ class UserListCache {
     static user_list & get() {
       return m_user_list;
     }
+  
+    static void insert( std::string passcode, user_ptr user ) {
+      std::pair<std::string, user_ptr> pair(passcode, user);
+    
+      std::lock_guard< std::mutex > lock( m_user_list_mutex );
+      
+      m_user_list.insert( pair );
+    }
     
     static void set( user_list & u_list ) {
       m_user_list = u_list;
@@ -100,6 +108,14 @@ class TorrentListCache {
   
     static torrent_list & get() {
       return m_torrent_list;
+    }
+  
+    static void insert( std::string decoded_info_hash, torrent_t torrent ) {
+      std::pair<std::string, torrent_t> pair(decoded_info_hash, torrent);
+      
+      std::lock_guard< std::mutex > lock( m_torrent_list_mutex );
+      
+      m_torrent_list.insert( pair );
     }
   
     static void set( torrent_list & t_list ) {

@@ -6,5 +6,7 @@
 #include "gmock/gmock.h"
 // HELPER INCLUDES
 #include "http_client.h"
+// PROJECT INCLUDES
+#include "cache.h"
 
 #endif // __TEST_HELPER_H__

@@ -26,13 +26,13 @@ class UpdateController {
     std::string before__authenticate();
   
     void change_passkey();
-    void add_torrent();
+    std::string add_torrent();
     void update_torrent();
     void update_torrents();
     void delete_torrent();
     void add_token();
     void remove_token();
-    void add_user();
+    std::string add_user();
     void update_user();
     void remove_user();
     void remove_users();

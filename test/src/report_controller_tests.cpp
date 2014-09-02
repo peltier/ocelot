@@ -1,6 +1,5 @@
 #include "test_helper.h"
 
-
 TEST(ReportControllerTests, fails_without_get_stats_param) {
 
   auto bad_request = "/" + config::get_instance()->report_password + "/report";

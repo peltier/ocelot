@@ -50,6 +50,7 @@
 #include "gmock/gmock.h"
 
 #include "ocelot.h"
+#include "logger.h"
 
 // Setup a Test Environment
 class TestEnvironment : public ::testing::Environment {
