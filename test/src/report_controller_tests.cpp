@@ -1,7 +1,7 @@
 #include "test_helper.h"
 
 
-TEST(ReportTests, fails_without_get_stats_param) {
+TEST(ReportControllerTests, fails_without_get_stats_param) {
 
   auto bad_request = "/" + config::get_instance()->report_password + "/report";
   
@@ -12,7 +12,7 @@ TEST(ReportTests, fails_without_get_stats_param) {
   EXPECT_TRUE( response.find( expected_response ) != std::string::npos );
 }
 
-TEST(ReportTests, fails_with_bad_report_password) {
+TEST(ReportControllerTests, fails_with_bad_report_password) {
   
   auto bad_request = "/***S*bad**12****D****s***bad*bad/report?get=stats";
   
@@ -23,7 +23,7 @@ TEST(ReportTests, fails_with_bad_report_password) {
   EXPECT_TRUE( response.find( expected_response ) != std::string::npos );
 }
 
-TEST(ReportTests, can_get_successful_tracker_report) {
+TEST(ReportControllerTests, can_get_successful_tracker_report) {
 
   auto request = "/" + config::get_instance()->report_password + "/report?get=stats";
   
@@ -38,7 +38,7 @@ TEST(ReportTests, can_get_successful_tracker_report) {
   EXPECT_TRUE( response.find("</style>") != std::string::npos );
 }
 
-TEST(ReportTests, fails_when_getting_user_t_without_key) {
+TEST(ReportControllerTests, fails_when_getting_user_t_without_key) {
 
   auto request = "/" + config::get_instance()->report_password + "/report?get=user_t";
   
@@ -47,7 +47,7 @@ TEST(ReportTests, fails_when_getting_user_t_without_key) {
   EXPECT_TRUE( response.find("Invalid action") != std::string::npos );
 }
 
-TEST(ReportTests, failes_when_given_bad_user_key) {
+TEST(ReportControllerTests, failes_when_given_bad_user_key) {
   
   auto request = "/" + config::get_instance()->report_password + "/report?get=user_t&key=3f981ffe2XXXXXbadbadbadbadbadbad";
   
@@ -56,7 +56,7 @@ TEST(ReportTests, failes_when_given_bad_user_key) {
   EXPECT_TRUE( response.find("No such user!") != std::string::npos );
 }
 
-TEST(ReportTests, can_get_successful_user_report) {
+TEST(ReportControllerTests, can_get_successful_user_report) {
   
   auto request = "/" + config::get_instance()->report_password + "/report?get=user_t&key=3f981ffe2XXXXXX7780441XXXXXX6dde";
   
