@@ -47,7 +47,7 @@ std::string UpdateController::get_response() {
     
   } else if (params["action"] == "delete_torrent") {
     
-    delete_torrent();
+    return delete_torrent();
     
   } else if (params["action"] == "add_user") {
     
@@ -200,7 +200,7 @@ void UpdateController::update_torrents() {
   }
 }
 
-void UpdateController::delete_torrent() {
+std::string UpdateController::delete_torrent() {
   
   auto params = m_request.get_params();
   auto ref_torrent_list = TorrentListCache::get();
@@ -211,29 +211,43 @@ void UpdateController::delete_torrent() {
   int reason = -1;
   auto reason_it = params.find("reason");
   if (reason_it != params.end()) {
-    reason = atoi(params["reason"].c_str());
+    reason = std::stoi(params["reason"]);
   }
+  
   auto torrent_it = ref_torrent_list.find(info_hash);
   if (torrent_it != ref_torrent_list.end()) {
-    std::cout << "Deleting torrent " << torrent_it->second.id << " for the reason '" << get_deletion_reason(reason) << "'" << std::endl;
+    
+    std::string response_message = "Deleting torrent " + std::to_string( torrent_it->second.id ) + " for the reason '" + get_deletion_reason(reason) + "'";
+    Logger::info(response_message);
+    
     stats.leechers -= torrent_it->second.leechers.size();
     stats.seeders -= torrent_it->second.seeders.size();
-    std::unique_lock<std::mutex> us_lock(worker::m_ustats_lock);
+
     for (auto p = torrent_it->second.leechers.begin(); p != torrent_it->second.leechers.end(); ++p) {
       p->second.user->decr_leeching();
     }
     for (auto p = torrent_it->second.seeders.begin(); p != torrent_it->second.seeders.end(); ++p) {
       p->second.user->decr_seeding();
     }
-    us_lock.unlock();
-    std::unique_lock<std::mutex> dr_lock(worker::m_del_reasons_lock);
+
     deletion_message_t msg;
     msg.reason = reason;
     msg.time = time(NULL);
-    ref_deletion_reason[info_hash] = msg;
-    ref_torrent_list.erase(torrent_it);
+    
+    DeletionReasonsCache::insert( info_hash, msg );
+    
+    TorrentListCache::remove( torrent_it->first, torrent_it->second );
+    
+    // Return response
+    return response(response_message, false, false);
+    
   } else {
-    std::cout << "Failed to find torrent " << bintohex(info_hash) << " to delete " << std::endl;
+  
+    std::string response_message = "Failed to find torrent " + bintohex(info_hash) + " to delete";
+    
+    Logger::error(response_message);
+    
+    return error(response_message);
   }
 }
 

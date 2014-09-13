@@ -29,7 +29,7 @@ class UpdateController {
     std::string add_torrent();
     void update_torrent();
     void update_torrents();
-    void delete_torrent();
+    std::string delete_torrent();
     void add_token();
     void remove_token();
     std::string add_user();

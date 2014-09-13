@@ -26,7 +26,15 @@ class DeletionReasonsCache {
     static std::unordered_map<std::string, deletion_message_t> & get() {
       return m_deletion_reasons;
     }
-    
+  
+    static void insert( std::string decoded_info_hash, deletion_message_t message ) {
+      std::pair<std::string, deletion_message_t> pair(decoded_info_hash, message);
+      
+      std::lock_guard< std::mutex > lock( m_deletion_reasons_mutex );
+      
+      m_deletion_reasons.insert( pair );
+    }
+  
     static void set( std::unordered_map<std::string, deletion_message_t> & delete_map ) {
       m_deletion_reasons = delete_map;
     }
@@ -116,6 +124,16 @@ class TorrentListCache {
       std::lock_guard< std::mutex > lock( m_torrent_list_mutex );
       
       m_torrent_list.insert( pair );
+    }
+  
+    static void remove( std::string decoded_info_hash, torrent_t torrent ) {
+      std::pair<std::string, torrent_t> pair(decoded_info_hash, torrent);
+      
+      std::lock_guard< std::mutex > lock( m_torrent_list_mutex );
+      
+      if( m_torrent_list.count( decoded_info_hash ) > 0 ) {
+        m_torrent_list.erase( decoded_info_hash );
+      }
     }
   
     static void set( torrent_list & t_list ) {

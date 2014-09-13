@@ -40,6 +40,7 @@ TEST(UpdateControllerTests, add_three_users_to_tracker) {
 }
 
 TEST(UpdateControllerTests, add_torrent_to_tracker) {
+
   auto request = "/"+ config::get_instance()->site_password +"/update?action=add_torrent&info_hash=aaaaaaaaaaaaaaaaaaaa&id=99999999&freetorrent=0";
   
   auto response = http::get(request);
@@ -53,4 +54,30 @@ TEST(UpdateControllerTests, add_torrent_to_tracker) {
   EXPECT_TRUE( response.find("Added torrent 99999999. FL: 1 1") != std::string::npos );
   
   EXPECT_FALSE( TorrentListCache::find( hex_decode("aaaaaaaaaaaaaaaaaaaa") ).empty() );
+}
+
+TEST(UpdateControllerTests, remove_torrent_from_tracker) {
+
+  // FIRST WE ADD A NEW TORRENT
+  auto request = "/"+ config::get_instance()->site_password +"/update?action=add_torrent&info_hash=aaaaaaaaaaaaaaaatest&id=99999988&freetorrent=0";
+  
+  auto response = http::get(request);
+  
+  EXPECT_TRUE( response.find("Added torrent 99999988. FL: 0 0") != std::string::npos );
+
+  // NOW WE DELETE IT
+  auto request_del = "/"+ config::get_instance()->site_password +"/update?action=delete_torrent&info_hash=aaaaaaaaaaaaaaaatest&reason=3";
+  
+  auto response_del = http::get(request_del);
+
+  EXPECT_TRUE( response_del.find("Deleting torrent 99999988 for the reason 'Bad Folder Names'") != std::string::npos );
+  
+  // CANNOT DELETE TWICE
+  auto request_error = "/"+ config::get_instance()->site_password +"/update?action=delete_torrent&info_hash=aaaaaaaaaaaaaaaatest&reason=3";
+  
+  auto response_error = http::get(request_del);
+  
+  EXPECT_TRUE( response_error.find("Failed to find torrent") != std::string::npos );
+  EXPECT_TRUE( response_error.find("to delete") != std::string::npos );
+
 }
