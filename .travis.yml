@@ -25,7 +25,10 @@ before_install:
   - sudo apt-get install -y unzip
   - curl -o ../gtest-1.7.0.zip -O https://googletest.googlecode.com/files/gtest-1.7.0.zip
   - unzip ../gtest-1.7.0.zip -d ..
-  - "cd ../gtest-1.7.0 && cmake . && make"
+  - cd ../gtest-1.7.0
+  - cmake .
+  - make
+  - cd ../ocelot # Return to project directory for tests
 
 before_script:
 # Setup test DB dump
