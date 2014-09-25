@@ -24,7 +24,7 @@ before_install:
 # gmock / gtest
   - sudo apt-get install -y unzip
   - curl -o ../gtest-1.7.0.zip -O https://googletest.googlecode.com/files/gtest-1.7.0.zip
-  - unzip ../gtest-1.7.0.zip -d ../gtest-1.7.0
+  - unzip ../gtest-1.7.0.zip -d ..
   - "cd ../gtest-1.7.0 && cmake . && make"
 
 before_script:
