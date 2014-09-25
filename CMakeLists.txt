@@ -106,6 +106,7 @@ INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/src")
 INCLUDE_DIRECTORIES("${PROJECT_SOURCE_DIR}/test")
 INCLUDE_DIRECTORIES("/usr/local/include")
 INCLUDE_DIRECTORIES("/usr/include/mysql")
+INCLUDE_DIRECTORIES("/usr/local/include/mysql")
 
 #
 # Project Lib
