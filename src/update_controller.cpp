@@ -1,4 +1,3 @@
-#include <Kerberos/Kerberos.h>
 #include "update_controller.h"
 #include "logger.h"
 #include "worker.h"
