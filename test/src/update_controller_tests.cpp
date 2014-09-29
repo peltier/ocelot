@@ -88,9 +88,14 @@ TEST(UpdateControllerTests, change_a_user_passkey) {
 
   auto request = base + "/update?action=change_passkey&oldpasskey=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab&newpasskey=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac";
 
+  auto undo_request = base + "/update?action=change_passkey&oldpasskey=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac&newpasskey=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab";
+
   auto response = http::get( request );
 
   EXPECT_TRUE( response.find("Changed passkey from ") != std::string::npos );
 
   EXPECT_TRUE( http::get( request ).find("No user_t with passkey") != std::string::npos );
+
+  // Undo changes
+  EXPECT_TRUE( http::get( undo_request ).find("Changed passkey from ") != std::string::npos );
 }
