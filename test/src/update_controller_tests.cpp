@@ -81,3 +81,16 @@ TEST(UpdateControllerTests, remove_torrent_from_tracker) {
   EXPECT_TRUE( response_error.find("to delete") != std::string::npos );
 
 }
+
+TEST(UpdateControllerTests, change_a_user_passkey) {
+
+  auto base = "/"+ config::get_instance()->site_password;
+
+  auto request = base + "/update?action=change_passkey&oldpasskey=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab&newpasskey=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac";
+
+  auto response = http::get( request );
+
+  EXPECT_TRUE( response.find("Changed passkey from ") != std::string::npos );
+
+  EXPECT_TRUE( http::get( request ).find("No user_t with passkey") != std::string::npos );
+}

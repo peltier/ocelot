@@ -88,6 +88,15 @@ class UserListCache {
       
       m_user_list.insert( pair );
     }
+
+    static void remove( std::string passcode ) {
+      std::lock_guard< std::mutex > lock( m_user_list_mutex );
+
+      // Remove passcode ref to user if passcode exists
+      if( m_user_list.count( passcode ) > 0 ) {
+        m_user_list.erase( passcode );
+      }
+    }
     
     static void set( user_list & u_list ) {
       m_user_list = u_list;

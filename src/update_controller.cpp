@@ -1,3 +1,4 @@
+#include <Kerberos/Kerberos.h>
 #include "update_controller.h"
 #include "logger.h"
 #include "worker.h"
@@ -23,7 +24,7 @@ std::string UpdateController::get_response() {
   
   if (params["action"] == "change_passkey") {
   
-    change_passkey();
+    return change_passkey();
     
   } else if (params["action"] == "add_torrent") {
     
@@ -91,20 +92,38 @@ std::string UpdateController::get_response() {
   
 }
 
-void UpdateController::change_passkey() {
+std::string UpdateController::change_passkey() {
   
   auto params = m_request.get_params();
-  auto ref_user_list = UserListCache::get();
+
+  if( params.count("oldpasskey") <= 0 ||
+      params.count("newpasskey") <= 0) {
+
+    return error("Invalid parameters");
+  }
   
-  std::string oldpasskey = params["oldpasskey"];
-  std::string newpasskey = params["newpasskey"];
-  auto u = ref_user_list.find(oldpasskey);
-  if (u == ref_user_list.end()) {
-    std::cout << "No user_t with passkey " << oldpasskey << " exists when attempting to change passkey to " << newpasskey << std::endl;
+  std::string old_passkey = params["oldpasskey"];
+  std::string new_passkey = params["newpasskey"];
+
+  auto user_vec = UserListCache::find( old_passkey );
+  if ( user_vec.empty() ) {
+    auto error_message = "No user_t with passkey " + old_passkey + " exists when attempting to change passkey to " + new_passkey;
+
+    // Return error, we're done
+    Logger::error( error_message );
+    return error( error_message );
+
   } else {
-    UserListCache::get()[newpasskey] = u->second;
-    ref_user_list.erase(oldpasskey);
-    std::cout << "Changed passkey from " << oldpasskey << " to " << newpasskey << " for user_t " << u->second->get_id() << std::endl;
+    auto user = user_vec.front();
+
+    UserListCache::insert( new_passkey, user );
+    UserListCache::remove( old_passkey );
+
+    auto response = "Changed passkey from " + old_passkey + " to " + new_passkey + " for user_t " + std::to_string( user->get_id() );
+
+    // Success
+    Logger::info( response );
+    return response;
   }
 }
 
