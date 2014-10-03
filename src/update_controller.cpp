@@ -31,7 +31,7 @@ std::string UpdateController::get_response() {
     
   } else if (params["action"] == "update_torrent") {
     
-    update_torrent();
+    return update_torrent();
     
   } else if (params["action"] == "update_torrents") {
 
@@ -129,7 +129,6 @@ std::string UpdateController::change_passkey() {
 std::string UpdateController::add_torrent() {
   
   auto params = m_request.get_params();
-  auto ref_torrent_list = TorrentListCache::get();
 
   torrent_t t;
   bool save_new_torrent = false;
@@ -166,10 +165,9 @@ std::string UpdateController::add_torrent() {
   return success_message;
 }
 
-void UpdateController::update_torrent() {
+std::string UpdateController::update_torrent() {
 
   auto params = m_request.get_params();
-  auto ref_torrent_list = TorrentListCache::get();
 
   std::string info_hash = params["info_hash"];
   info_hash = hex_decode(info_hash);
@@ -181,12 +179,26 @@ void UpdateController::update_torrent() {
   } else {
     fl = NEUTRAL;
   }
-  auto torrent_it = ref_torrent_list.find(info_hash);
-  if (torrent_it != ref_torrent_list.end()) {
-    torrent_it->second.free_torrent = fl;
-    std::cout << "Updated torrent " << torrent_it->second.id << " to FL " << fl << std::endl;
+
+  auto torrent_vec = TorrentListCache::find(info_hash);
+
+  if ( !torrent_vec.empty() ) {
+    auto torrent = torrent_vec.front();
+
+    torrent.free_torrent = fl;
+
+    TorrentListCache::insert( info_hash , torrent );
+
+    auto response = "Updated torrent " + std::to_string(torrent.id) + " to FL " + std::to_string(fl);
+
+    Logger::info(response);
+    return response;
+
   } else {
-    std::cout << "Failed to find torrent " << info_hash << " to FL " << fl << std::endl;
+    auto response = "Failed to find torrent " + info_hash + " to FL " + std::to_string(fl);
+
+    Logger::error(response);
+    return error(response);
   }
 }
 
@@ -199,9 +211,9 @@ void UpdateController::update_torrents() {
   std::string info_hashes = params["info_hashes"];
   info_hashes = hex_decode(info_hashes);
   freetype fl;
-  if (params["freetorrent"] == "0") {
+  if (params.count("freetorrent") > 0 && params["freetorrent"] == "0") {
     fl = NORMAL;
-  } else if (params["freetorrent"] == "1") {
+  } else if (params.count("freetorrent") > 0 && params["freetorrent"] == "1") {
     fl = FREE;
   } else {
     fl = NEUTRAL;

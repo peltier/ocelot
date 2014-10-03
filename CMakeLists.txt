@@ -152,6 +152,7 @@ TARGET_LINK_LIBRARIES(
 #
 # Project Test and Test Runner
 #
+set(BUILD_TESTING 0 CACHE FILEPATH "testing")
 IF (BUILD_TESTING)
 
   #

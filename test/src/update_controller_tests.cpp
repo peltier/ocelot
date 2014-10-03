@@ -41,7 +41,7 @@ TEST(UpdateControllerTests, add_three_users_to_tracker) {
 
 TEST(UpdateControllerTests, add_torrent_to_tracker) {
 
-  auto request = "/"+ config::get_instance()->site_password +"/update?action=add_torrent&info_hash=aaaaaaaaaaaaaaaaaaaa&id=99999999&freetorrent=0";
+  auto request = "/"+ config::get_instance()->site_password + "/update?action=add_torrent&info_hash=aaaaaaaaaaaaaaaaaaaa&id=99999999&freetorrent=0";
   
   auto response = http::get(request);
   
@@ -98,4 +98,34 @@ TEST(UpdateControllerTests, change_a_user_passkey) {
 
   // Undo changes
   EXPECT_TRUE( http::get( undo_request ).find("Changed passkey from ") != std::string::npos );
+}
+
+TEST(UpdateControllerTests, update_torrent) {
+
+  // Add torrent
+  http::get("/" + config::get_instance()->site_password + "/update?action=add_torrent&info_hash=aaaaaaaaaaaaaaaaaaaupdatetorrent&id=99990000&freetorrent=0");
+
+  EXPECT_FALSE( TorrentListCache::find("aaaaaaaaaaaaaaaaaaaupdatetorrent").empty() );
+
+  auto request = "/"+ config::get_instance()->site_password +"/update?action=update_torrent&info_hash=aaaaaaaaaaaaaaaaaaaupdatetorrent&freetorrent=1";
+
+  auto bad_request = "/"+ config::get_instance()->site_password +"/update?action=update_torrent&info_hash=aaaaxxxaaaadoesnotexist&freetorrent=0";
+
+  auto partial_request = "/"+ config::get_instance()->site_password +"/update?action=update_torrent&info_hash=aaaaaaaaaaaaaaaaaaaupdatetorrent";
+
+  // Test for success and error
+  EXPECT_TRUE( http::get( request ).find("Updated torrent ") != std::string::npos );
+
+  EXPECT_TRUE( http::get( bad_request ).find("Failed to find torrent ") != std::string::npos );
+
+  auto torrent = TorrentListCache::find("aaaaaaaaaaaaaaaaaaaupdatetorrent").front();
+
+  EXPECT_EQ( FREE, torrent.free_torrent );
+
+  // Test Partial
+  EXPECT_TRUE( http::get( partial_request ).find("Updated torrent ") != std::string::npos );
+
+  torrent = TorrentListCache::find("aaaaaaaaaaaaaaaaaaaupdatetorrent").front();
+
+  EXPECT_EQ( NEUTRAL, torrent.free_torrent );
 }

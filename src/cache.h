@@ -6,6 +6,7 @@
 
 #include "ocelot.h"
 #include "user.h"
+#include "logger.h"
 
 //
 // Deletion Cache
@@ -128,11 +129,9 @@ class TorrentListCache {
     }
   
     static void insert( std::string decoded_info_hash, torrent_t torrent ) {
-      std::pair<std::string, torrent_t> pair(decoded_info_hash, torrent);
-      
       std::lock_guard< std::mutex > lock( m_torrent_list_mutex );
-      
-      m_torrent_list.insert( pair );
+
+      m_torrent_list[ decoded_info_hash ] = torrent;
     }
   
     static void remove( std::string decoded_info_hash, torrent_t torrent ) {
