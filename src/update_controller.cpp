@@ -35,7 +35,7 @@ std::string UpdateController::get_response() {
     
   } else if (params["action"] == "update_torrents") {
 
-    update_torrents();
+    return update_torrents();
 
   } else if (params["action"] == "add_token") {
     
@@ -202,10 +202,9 @@ std::string UpdateController::update_torrent() {
   }
 }
 
-void UpdateController::update_torrents() {
+std::string UpdateController::update_torrents() {
   
   auto params = m_request.get_params();
-  auto ref_torrent_list = TorrentListCache::get();
 
   // Each decoded infohash is exactly 20 characters long.
   std::string info_hashes = params["info_hashes"];
@@ -218,16 +217,34 @@ void UpdateController::update_torrents() {
   } else {
     fl = NEUTRAL;
   }
+
+  std::string response_combined = "";
+
   for (unsigned int pos = 0; pos < info_hashes.length(); pos += 20) {
     std::string info_hash = info_hashes.substr(pos, 20);
-    auto torrent_it = ref_torrent_list.find(info_hash);
-    if (torrent_it != ref_torrent_list.end()) {
-      torrent_it->second.free_torrent = fl;
-      std::cout << "Updated torrent " << torrent_it->second.id << " to FL " << fl << std::endl;
+    auto torrent_vec = TorrentListCache::find(info_hash);
+    if ( !torrent_vec.empty() ) {
+      auto torrent = torrent_vec.front();
+      torrent.free_torrent = fl;
+
+      TorrentListCache::insert( info_hash , torrent );
+
+      auto response = "Updated torrent " + std::to_string(torrent.id) + " to FL " + std::to_string(fl);
+
+      response_combined += response;
+
+      Logger::info(response);
+
     } else {
-      std::cout << "Failed to find torrent " << info_hash << " to FL " << fl << std::endl;
+      auto response = "Failed to find torrent " + info_hash + " to FL " + std::to_string(fl);
+
+      response_combined += response;
+
+      Logger::error(response);
     }
   }
+
+  return response_combined;
 }
 
 std::string UpdateController::delete_torrent() {

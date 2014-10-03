@@ -129,3 +129,32 @@ TEST(UpdateControllerTests, update_torrent) {
 
   EXPECT_EQ( NEUTRAL, torrent.free_torrent );
 }
+
+TEST(UpdateControllerTests, update_torrents) {
+
+  // Add torrent
+  http::get("/" + config::get_instance()->site_password + "/update?action=add_torrent&info_hash=aa1aaaaaaaaaaaaatest&id=99990010&freetorrent=0");
+  http::get("/" + config::get_instance()->site_password + "/update?action=add_torrent&info_hash=aa2aaaaaaaaaaaaatest&id=99990020&freetorrent=0");
+
+  EXPECT_FALSE( TorrentListCache::find("aa1aaaaaaaaaaaaatest").empty() );
+  EXPECT_FALSE( TorrentListCache::find("aa2aaaaaaaaaaaaatest").empty() );
+  EXPECT_TRUE( TorrentListCache::find("aa3adoesnotexisttest").empty() );
+
+  // Do it!
+  auto torrent_1 = "aa1aaaaaaaaaaaaatest";
+  auto torrent_2 = "aa2aaaaaaaaaaaaatest";
+  auto torrent_3 = "aa3adoesnotexisttest";
+
+  auto request = "/"+ config::get_instance()->site_password +"/update?action=update_torrents&info_hashes=" + torrent_1 + torrent_2 + torrent_3 + "&freetorrent=1";
+
+  auto response = http::get( request );
+
+  EXPECT_TRUE( response.find("Updated torrent 99990010") != std::string::npos );
+  EXPECT_TRUE( response.find("Updated torrent 99990020") != std::string::npos );
+  // There should be one bad torrent in the mix
+  EXPECT_TRUE( response.find("Failed to find torrent aa3adoesnotexisttest") != std::string::npos );
+
+  EXPECT_EQ( FREE, TorrentListCache::find("aa1aaaaaaaaaaaaatest").front().free_torrent );
+  EXPECT_EQ( FREE, TorrentListCache::find("aa2aaaaaaaaaaaaatest").front().free_torrent );
+  EXPECT_TRUE( TorrentListCache::find("aa3adoesnotexisttest").empty() );
+}
