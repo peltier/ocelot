@@ -55,7 +55,7 @@ std::string UpdateController::get_response() {
     
   } else if (params["action"] == "remove_user") {
     
-    remove_user();
+    return remove_user();
     
   } else if (params["action"] == "remove_users") {
 
@@ -395,16 +395,28 @@ void UpdateController::update_user() {
   }
 }
 
-void UpdateController::remove_user() {
+std::string UpdateController::remove_user() {
   
   auto params = m_request.get_params();
-  auto ref_user_list = UserListCache::get();
 
   std::string passkey = params["passkey"];
-  auto u = ref_user_list.find(passkey);
-  if (u != ref_user_list.end()) {
-    std::cout << "Removed user_t " << passkey << " with id " << u->second->get_id() << std::endl;
-    ref_user_list.erase(u);
+  auto user_vec = UserListCache::find(passkey);
+  if ( !user_vec.empty() ) {
+
+    auto user = user_vec.front();
+
+    UserListCache::remove( passkey );
+
+    std::string response("Removed user_t " + passkey + " with id " + std::to_string(user->get_id()));
+
+    Logger::info(response);
+    return response;
+  } else {
+
+    std::string response("No such user_t for passkey " + passkey);
+    Logger::error( response );
+
+    return response;
   }
 }
 

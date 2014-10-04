@@ -159,7 +159,7 @@ TEST(UpdateControllerTests, update_torrents) {
   EXPECT_TRUE( TorrentListCache::find("aa3adoesnotexisttest").empty() );
 }
 
-TEST(UpdateControllerTests, add_token_to_user) {
+TEST(UpdateControllerTests, add_token_to_torrent) {
 
   // Add torrent
   http::get("/" + config::get_instance()->site_password + "/update?action=add_torrent&info_hash=aa1aaaaaaaaaaaatoken&id=90993015&freetorrent=0");
@@ -174,4 +174,20 @@ TEST(UpdateControllerTests, add_token_to_user) {
   EXPECT_EQ( 1, TorrentListCache::find("aa1aaaaaaaaaaaatoken").front().tokened_users.count(123456) );
 
   EXPECT_TRUE( http::get( request_bad ).find("Failed to find torrent to add a token for user_t 123456") != std::string::npos );
+}
+
+TEST(UpdateControllerTests, remove_user) {
+
+  // Add a user
+  http::get("/"+ config::get_instance()->site_password +"/update?action=add_user&passkey=aaaaaaaaaaaaaaaaaaaaaaaaaaaaazzz&id=10123002");
+
+  EXPECT_FALSE( UserListCache::find("aaaaaaaaaaaaaaaaaaaaaaaaaaaaazzz").empty() );
+
+  auto request = "/"+ config::get_instance()->site_password +"/update?action=remove_user&passkey=aaaaaaaaaaaaaaaaaaaaaaaaaaaaazzz";
+
+  EXPECT_TRUE( http::get( request ).find("Removed user_t aaaaaaaaaaaaaaaaaaaaaaaaaaaaazzz with id 10123002") != std::string::npos );
+
+  EXPECT_TRUE( UserListCache::find("aaaaaaaaaaaaaaaaaaaaaaaaaaaaazzz").empty() );
+
+  EXPECT_TRUE( http::get( request ).find("No such user_t for passkey aaaaaaaaaaaaaaaaaaaaaaaaaaaaazzz") != std::string::npos );
 }
