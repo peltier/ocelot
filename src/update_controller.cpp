@@ -39,7 +39,7 @@ std::string UpdateController::get_response() {
 
   } else if (params["action"] == "add_token") {
     
-    add_token();
+    return add_token();
     
   } else if (params["action"] == "remove_token") {
     
@@ -251,8 +251,7 @@ std::string UpdateController::delete_torrent() {
   
   auto params = m_request.get_params();
   auto ref_torrent_list = TorrentListCache::get();
-  auto ref_deletion_reason = DeletionReasonsCache::get();
-  
+
   std::string info_hash = params["info_hash"];
   info_hash = hex_decode(info_hash);
   int reason = -1;
@@ -298,18 +297,35 @@ std::string UpdateController::delete_torrent() {
   }
 }
 
-void UpdateController::add_token() {
+std::string UpdateController::add_token() {
 
   auto params = m_request.get_params();
-  auto ref_torrent_list = TorrentListCache::get();
 
   std::string info_hash = hex_decode(params["info_hash"]);
-  int userid = atoi(params["userid"].c_str());
-  auto torrent_it = ref_torrent_list.find(info_hash);
-  if (torrent_it != ref_torrent_list.end()) {
-    torrent_it->second.tokened_users.insert(userid);
+
+  // TODO: I'm leaving atoi in most errors it returns 0 #hack
+  int user_id = atoi(params["userid"].c_str());
+
+  auto torrent_vec = TorrentListCache::find( info_hash );
+
+  if( !torrent_vec.empty() ) {
+    auto torrent = torrent_vec.front();
+
+    // TODO: Thread safety concern?
+    torrent.tokened_users.insert(user_id);
+
+    TorrentListCache::insert( info_hash, torrent );
+
+    std::string response = "Added user id " + std::to_string(user_id) + " to " + info_hash;
+
+    Logger::info( response );
+    return response;
+
   } else {
-    std::cout << "Failed to find torrent to add a token for user_t " << userid << std::endl;
+    std::string response = "Failed to find torrent to add a token for user_t " + std::to_string(user_id);
+
+    Logger::error( response );
+    return error( response );
   }
 }
 

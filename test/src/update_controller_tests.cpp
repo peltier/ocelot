@@ -158,3 +158,20 @@ TEST(UpdateControllerTests, update_torrents) {
   EXPECT_EQ( FREE, TorrentListCache::find("aa2aaaaaaaaaaaaatest").front().free_torrent );
   EXPECT_TRUE( TorrentListCache::find("aa3adoesnotexisttest").empty() );
 }
+
+TEST(UpdateControllerTests, add_token_to_user) {
+
+  // Add torrent
+  http::get("/" + config::get_instance()->site_password + "/update?action=add_torrent&info_hash=aa1aaaaaaaaaaaatoken&id=90993015&freetorrent=0");
+
+  auto request = "/"+ config::get_instance()->site_password +"/update?action=add_token&info_hash=aa1aaaaaaaaaaaatoken&userid=123456";
+  auto request_bad = "/"+ config::get_instance()->site_password +"/update?action=add_token&info_hash=aa1aaaazzzaaaaatoken&userid=123456";
+
+  auto response = http::get( request );
+
+  EXPECT_TRUE( response.find("Added user id 123456 to aa1aaaaaaaaaaaatoken") != std::string::npos );
+
+  EXPECT_EQ( 1, TorrentListCache::find("aa1aaaaaaaaaaaatoken").front().tokened_users.count(123456) );
+
+  EXPECT_TRUE( http::get( request_bad ).find("Failed to find torrent to add a token for user_t 123456") != std::string::npos );
+}
