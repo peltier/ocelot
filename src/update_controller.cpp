@@ -63,7 +63,7 @@ std::string UpdateController::get_response() {
 
   } else if (params["action"] == "update_user") {
     
-    update_user();
+    return update_user();
     
   } else if (params["action"] == "add_whitelist") {
 
@@ -353,19 +353,18 @@ std::string UpdateController::remove_token() {
 
     Logger::error( response );
 
-    return response;
+    return error(response);
   }
 }
 
 std::string UpdateController::add_user() {
 
   auto params = m_request.get_params();
-  auto ref_user_list = UserListCache::get();
-  
+
   std::string passkey = params["passkey"];
   unsigned int userid = std::stol(params["id"]);
-  auto u = ref_user_list.find(passkey);
-  if (u == ref_user_list.end()) {
+  auto user_vec = UserListCache::find(passkey);
+  if ( user_vec.empty() ) {
     bool protect_ip = params["visible"] == "0";
     user_ptr new_user(new User(userid, true, protect_ip));
     
@@ -384,10 +383,9 @@ std::string UpdateController::add_user() {
   }
 }
 
-void UpdateController::update_user() {
+std::string UpdateController::update_user() {
 
   auto params = m_request.get_params();
-  auto ref_user_list = UserListCache::get();
 
   std::string passkey = params["passkey"];
   bool can_leech = true;
@@ -398,13 +396,29 @@ void UpdateController::update_user() {
   if (params["visible"] == "0") {
     protect_ip = true;
   }
-  user_list::iterator i = ref_user_list.find(passkey);
-  if (i == ref_user_list.end()) {
-    std::cout << "No user_t with passkey " << passkey << " found when attempting to change leeching m_status!" << std::endl;
+
+  auto user_vec = UserListCache::find(passkey);
+
+  if ( user_vec.empty() ) {
+    std::string response = "No user_t with passkey " + passkey + " found when attempting to change leeching m_status!";
+
+    Logger::error( response );
+
+    return error(response);
+
   } else {
-    i->second->set_protected(protect_ip);
-    i->second->set_leechstatus(can_leech);
-    std::cout << "Updated user_t " << passkey << std::endl;
+    auto user = user_vec.front();
+
+    user->set_protected(protect_ip);
+    user->set_leechstatus(can_leech);
+
+    // May not need this; even so, I'm leaving it for now
+    UserListCache::insert( passkey , user );
+
+    std::string response = "Updated user_t " + passkey;
+
+    Logger::info( response );
+    return response;
   }
 }
 

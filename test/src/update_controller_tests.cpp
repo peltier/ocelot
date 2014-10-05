@@ -208,3 +208,19 @@ TEST(UpdateControllerTests, remove_user) {
   EXPECT_TRUE( http::get( request ).find("No such user_t for passkey aaaaaaaaaaaaaaaaaaaaaaaaaaaaazzz") != std::string::npos );
 }
 
+TEST(UpdateControllerTests, update_user) {
+
+  EXPECT_TRUE( UserListCache::find("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").front()->can_leech() );
+  EXPECT_FALSE( UserListCache::find("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").front()->is_protected() );
+
+  auto request = "/"+ config::get_instance()->site_password +"/update?action=update_user&passkey=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&can_leech=0&visible=0";
+
+  auto response = http::get( request );
+
+
+  EXPECT_TRUE( http::get( request ).find("Updated user_t aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") != std::string::npos );
+
+  EXPECT_FALSE( UserListCache::find("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").front()->can_leech() );
+  EXPECT_TRUE( UserListCache::find("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").front()->is_protected() );
+
+}

@@ -33,7 +33,7 @@ class UpdateController {
     std::string add_token();
     std::string remove_token();
     std::string add_user();
-    void update_user();
+    std::string update_user();
     std::string remove_user();
     void remove_users();
     void add_whitelist();
