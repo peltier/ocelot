@@ -43,7 +43,7 @@ std::string UpdateController::get_response() {
     
   } else if (params["action"] == "remove_token") {
     
-    remove_token();
+    return remove_token();
     
   } else if (params["action"] == "delete_torrent") {
     
@@ -316,7 +316,7 @@ std::string UpdateController::add_token() {
 
     TorrentListCache::insert( info_hash, torrent );
 
-    std::string response = "Added user id " + std::to_string(user_id) + " to " + info_hash;
+    std::string response = "Added token " + std::to_string(user_id) + " to torrent " + info_hash;
 
     Logger::info( response );
     return response;
@@ -329,18 +329,31 @@ std::string UpdateController::add_token() {
   }
 }
 
-void UpdateController::remove_token() {
+std::string UpdateController::remove_token() {
   
   auto params = m_request.get_params();
-  auto ref_torrent_list = TorrentListCache::get();
 
   std::string info_hash = hex_decode(params["info_hash"]);
   int userid = atoi(params["userid"].c_str());
-  auto torrent_it = ref_torrent_list.find(info_hash);
-  if (torrent_it != ref_torrent_list.end()) {
-    torrent_it->second.tokened_users.erase(userid);
+  auto torrent_vec = TorrentListCache::find( info_hash );
+
+  if ( !torrent_vec.empty() ) {
+    auto torrent = torrent_vec.front();
+    torrent.tokened_users.erase(userid);
+
+    TorrentListCache::insert( info_hash, torrent );
+
+    std::string response = "Removed token " + std::to_string(userid) + " from torrent " + info_hash;
+
+    Logger::info( response );
+    return response;
+
   } else {
-    std::cout << "Failed to find torrent " << info_hash << " to remove token for user_t " << userid << std::endl;
+    std::string response = "Failed to find torrent " + info_hash + " to remove token for user_t " + std::to_string(userid);
+
+    Logger::error( response );
+
+    return response;
   }
 }
 
