@@ -57,8 +57,63 @@ class WhitelistCache {
     static void set( std::vector<std::string> & w_list ) {
       m_whitelist = w_list;
     }
+
+    static void insert( std::string peer_id ) {
+      std::lock_guard< std::mutex > lock( m_whitelist_mutex );
+
+      m_whitelist.push_back( peer_id );
+    }
+
+    static void remove( std::string peer_id ) {
+      std::lock_guard< std::mutex > lock( m_whitelist_mutex );
+
+      // Crappy iterate
+      for( size_t i = 0; i < m_whitelist.size(); ++i ) {
+
+        // Replace
+        if( m_whitelist[i] == peer_id ) {
+          // Remove from vector
+          m_whitelist.erase( m_whitelist.begin() + i );
+          // Return now!
+          return;
+        }
+      }
+
+      m_whitelist.push_back( peer_id );
+    }
+
+    static bool exists( std::string peer_id ) {
+      std::lock_guard< std::mutex > lock( m_whitelist_mutex );
+
+      // Crappy iterate
+      for( size_t i = 0; i < m_whitelist.size(); ++i ) {
+
+        // Replace
+        if( m_whitelist[i] == peer_id ) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    static void replace( std::string old_peer_id, std::string new_peer_id ) {
+      std::lock_guard< std::mutex > lock( m_whitelist_mutex );
+
+      // Crappy iterate
+      for( size_t i = 0; i < m_whitelist.size(); ++i ) {
+
+        // Replace
+        if( m_whitelist[i] == old_peer_id ) {
+          m_whitelist[i] = new_peer_id;
+          return;
+        }
+      }
+    }
+
   private:
     static std::vector<std::string> m_whitelist;
+    static std::mutex m_whitelist_mutex;
 };
 
 

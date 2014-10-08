@@ -35,12 +35,12 @@ class UpdateController {
     std::string add_user();
     std::string update_user();
     std::string remove_user();
-    void remove_users();
-    void add_whitelist();
-    void edit_whitelist();
-    void remove_whitelist();
-    void update_announce_interval();
-    void torrent_info();
+    std::string remove_users();
+    std::string add_whitelist();
+    std::string edit_whitelist();
+    std::string remove_whitelist();
+    std::string update_announce_interval();
+    std::string torrent_info();
 };
 
 #endif /* defined(__ocelot__update_controller__) */

@@ -217,10 +217,85 @@ TEST(UpdateControllerTests, update_user) {
 
   auto response = http::get( request );
 
-
   EXPECT_TRUE( http::get( request ).find("Updated user_t aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") != std::string::npos );
 
   EXPECT_FALSE( UserListCache::find("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").front()->can_leech() );
   EXPECT_TRUE( UserListCache::find("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").front()->is_protected() );
 
+}
+
+TEST(UpdateControllerTests, remove_users) {
+
+  // Add two new users
+  http::get("/"+ config::get_instance()->site_password +"/update?action=add_user&passkey=aaaaaaaaaaaaa1aaaaaaaaaaaaaaazzz&id=10126002");
+  http::get("/"+ config::get_instance()->site_password +"/update?action=add_user&passkey=aaaaaaaaaaaaa2aaaaaaaaaaaaaaazzz&id=10126134");
+
+  EXPECT_FALSE( UserListCache::find("aaaaaaaaaaaaa1aaaaaaaaaaaaaaazzz").empty() );
+  EXPECT_FALSE( UserListCache::find("aaaaaaaaaaaaa2aaaaaaaaaaaaaaazzz").empty() );
+  EXPECT_TRUE( UserListCache::find("aaaaaaxxxaaaa2aaaaaaaaaaaaaaazzz").empty() );
+
+  auto request = "/"+ config::get_instance()->site_password +"/update?action=remove_users&passkeys=";
+  request += "aaaaaaaaaaaaa1aaaaaaaaaaaaaaazzz";
+  request += "aaaaaaaaaaaaa2aaaaaaaaaaaaaaazzz";
+  // Does not exist:
+  request += "aaaaaaxxxaaaa2aaaaaaaaaaaaaaazzz";
+
+  auto response = http::get( request );
+
+  EXPECT_TRUE( response.find("Removed user_t aaaaaaaaaaaaa1aaaaaaaaaaaaaaazzz") != std::string::npos );
+  EXPECT_TRUE( response.find("Removed user_t aaaaaaaaaaaaa2aaaaaaaaaaaaaaazzz") != std::string::npos );
+  EXPECT_TRUE( response.find("Could not find user_t aaaaaaxxxaaaa2aaaaaaaaaaaaaaazzz") != std::string::npos );
+
+  EXPECT_TRUE( UserListCache::find("aaaaaaaaaaaaa1aaaaaaaaaaaaaaazzz").empty() );
+  EXPECT_TRUE( UserListCache::find("aaaaaaaaaaaaa2aaaaaaaaaaaaaaazzz").empty() );
+  EXPECT_TRUE( UserListCache::find("aaaaaaxxxaaaa2aaaaaaaaaaaaaaazzz").empty() );
+}
+
+TEST(UpdateControllerTests, add_peer_to_whitelist) {
+
+  EXPECT_FALSE( WhitelistCache::exists( "1234" ) );
+
+  auto response = http::get("/"+ config::get_instance()->site_password +"/update?action=add_whitelist&peer_id=1234");
+
+  EXPECT_TRUE( response.find("Whitelisted 1234") != std::string::npos );
+
+  EXPECT_TRUE( WhitelistCache::exists( "1234" ) );
+}
+
+TEST(UpdateControllerTests, edit_peer_in_whitelist) {
+
+  EXPECT_TRUE( WhitelistCache::exists( "1234" ) );
+
+  auto response = http::get("/"+ config::get_instance()->site_password +"/update?action=edit_whitelist&old_peer_id=1234&new_peer_id=12345");
+
+  EXPECT_TRUE( response.find("Edited whitelist item from 1234 to 12345") != std::string::npos );
+
+  EXPECT_TRUE( WhitelistCache::exists( "12345" ) );
+}
+
+TEST(UpdateControllerTests, remove_peer_in_whitelist) {
+
+  EXPECT_TRUE( WhitelistCache::exists( "12345" ) );
+
+  auto response = http::get("/"+ config::get_instance()->site_password +"/update?action=remove_whitelist&peer_id=12345");
+
+  EXPECT_TRUE( response.find("De-whitelisted 12345") != std::string::npos );
+
+  EXPECT_FALSE( WhitelistCache::exists( "12345" ) );
+}
+
+TEST(UpdateControllerTests, get_torrent_info) {
+
+  EXPECT_FALSE( TorrentListCache::find("aaaaaaaaaaaaaaaaaaaa").empty() );
+
+  auto response = http::get("/"+ config::get_instance()->site_password +"/update?action=info_torrent&info_hash=aaaaaaaaaaaaaaaaaaaa");
+
+  EXPECT_TRUE( response.find("Info for torrent ") != std::string::npos );
+}
+
+TEST(UpdateControllerTests, update_announce_interval) {
+
+  auto response = http::get("/"+ config::get_instance()->site_password +"/update?action=update_announce_interval&new_announce_interval=3000");
+
+  EXPECT_TRUE( response.find("Edited announce interval to 3000") != std::string::npos );
 }

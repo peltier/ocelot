@@ -1,6 +1,7 @@
 #include "update_controller.h"
 #include "logger.h"
 #include "worker.h"
+#include "cache.h"
 
 std::string UpdateController::before__authenticate() {
   if ( m_request.get_passkey() != m_config->site_password ) {
@@ -59,7 +60,7 @@ std::string UpdateController::get_response() {
     
   } else if (params["action"] == "remove_users") {
 
-    remove_users();
+    return remove_users();
 
   } else if (params["action"] == "update_user") {
     
@@ -67,23 +68,23 @@ std::string UpdateController::get_response() {
     
   } else if (params["action"] == "add_whitelist") {
 
-    add_whitelist();
+    return add_whitelist();
 
   } else if (params["action"] == "remove_whitelist") {
 
-    remove_whitelist();
+    return remove_whitelist();
 
   } else if (params["action"] == "edit_whitelist") {
 
-    edit_whitelist();
+    return edit_whitelist();
 
   } else if (params["action"] == "update_announce_interval") {
     
-    update_announce_interval();
+    return update_announce_interval();
     
   } else if (params["action"] == "info_torrent") {
     
-    torrent_info();
+    return torrent_info();
     
   }
   
@@ -447,89 +448,137 @@ std::string UpdateController::remove_user() {
   }
 }
 
-void UpdateController::remove_users() {
+std::string UpdateController::remove_users() {
 
   auto params = m_request.get_params();
-  auto ref_user_list = UserListCache::get();
+
+  std::string response;
 
   // Each passkey is exactly 32 characters long.
   std::string passkeys = params["passkeys"];
+
+
   for (unsigned int pos = 0; pos < passkeys.length(); pos += 32) {
     std::string passkey = passkeys.substr(pos, 32);
-    auto u = ref_user_list.find(passkey);
-    if (u != ref_user_list.end()) {
-      std::cout << "Removed user_t " << passkey << std::endl;
-      ref_user_list.erase(passkey);
+
+    auto user_vec = UserListCache::find( passkey );
+
+    std::string response_partial;
+
+    if( !user_vec.empty() ) {
+
+      UserListCache::remove( passkey );
+
+      response_partial = "Removed user_t " + passkey;
+
+      Logger::info( response_partial );
+
+      response += response_partial;
+
+    } else {
+
+      response_partial = "Could not find user_t " + passkey;
+
+      Logger::error( response_partial );
+
+      response += response_partial;
+
     }
   }
+
+  return response;
 }
 
-void UpdateController::add_whitelist() {
+std::string UpdateController::add_whitelist() {
 
   auto params = m_request.get_params();
-  auto ref_whitelist = WhitelistCache::get();
 
   std::string peer_id = params["peer_id"];
-  ref_whitelist.push_back(peer_id);
-  std::cout << "Whitelisted " << peer_id << std::endl;
+
+  WhitelistCache::insert( peer_id );
+
+  auto response = "Whitelisted " + peer_id;
+
+  Logger::info( response );
+  return response;
 }
 
-void UpdateController::edit_whitelist() {
+std::string UpdateController::edit_whitelist() {
 
   auto params = m_request.get_params();
-  auto ref_whitelist = WhitelistCache::get();
   
   std::string new_peer_id = params["new_peer_id"];
   std::string old_peer_id = params["old_peer_id"];
-  for (unsigned int i = 0; i < ref_whitelist.size(); i++) {
-    if (ref_whitelist[i].compare(old_peer_id) == 0) {
-      ref_whitelist.erase(ref_whitelist.begin() + i);
-      break;
-    }
+
+  if( new_peer_id.empty() || old_peer_id.empty() ) {
+
+    std::string response = "New and old peer ids cannot be blank";
+
+    Logger::error( response );
+    return error( response );
   }
-  ref_whitelist.push_back(new_peer_id);
-  std::cout << "Edited whitelist item from " << old_peer_id << " to " << new_peer_id << std::endl;
+
+  WhitelistCache::replace( old_peer_id , new_peer_id );
+
+  std::string response = "Edited whitelist item from " + old_peer_id + " to " + new_peer_id;
+
+  Logger::info(response);
+  return response;
 }
 
-void UpdateController::remove_whitelist() {
+std::string UpdateController::remove_whitelist() {
 
   auto params = m_request.get_params();
-  auto ref_whitelist = WhitelistCache::get();
 
   std::string peer_id = params["peer_id"];
-  for (unsigned int i = 0; i < ref_whitelist.size(); i++) {
-    if (ref_whitelist[i].compare(peer_id) == 0) {
-      ref_whitelist.erase(ref_whitelist.begin() + i);
-      break;
-    }
-  }
-  std::cout << "De-whitelisted " << peer_id << std::endl;
+
+  WhitelistCache::remove( peer_id );
+
+  std::string response = "De-whitelisted " + peer_id;
+
+  Logger::info( response );
+  return response;
 }
 
-void UpdateController::update_announce_interval() {
+std::string UpdateController::update_announce_interval() {
 
   auto params = m_request.get_params();
   
   unsigned int interval = std::stol(params["new_announce_interval"]);
-  // TODO: ALLOW ANNOUNCE INTERVAL TO BE CHANGED
-  std::cout << "FIX ANNOUNCE INTERVAL TO BE CHANGED" << std::endl;
+
   m_config->announce_interval = interval;
-  std::cout << "Edited announce interval to " << interval << std::endl;
+
+  std::string response = "Edited announce interval to " + std::to_string( interval );
+
+  Logger::info( response );
+  return response;
 }
 
-void UpdateController::torrent_info() {
+std::string UpdateController::torrent_info() {
 
   auto params = m_request.get_params();
-  auto ref_torrent_list = TorrentListCache::get();
 
   std::string info_hash_hex = params["info_hash"];
   std::string info_hash = hex_decode(info_hash_hex);
-  std::cout << "Info for torrent '" << info_hash_hex << "'" << std::endl;
-  auto torrent_it = ref_torrent_list.find(info_hash);
-  if (torrent_it != ref_torrent_list.end()) {
-    std::cout << "Torrent " << torrent_it->second.id
-    << ", freetorrent = " << torrent_it->second.free_torrent << std::endl;
+
+
+  auto torrent_vec = TorrentListCache::find(info_hash);
+
+  if( !torrent_vec.empty() ) {
+
+    auto torrent = torrent_vec.front();
+
+    std::string response = "Info for torrent '" + info_hash_hex + "'";
+    response += "Torrent " + std::to_string( torrent.id );
+    response += ", freetorrent = " + std::to_string( (int)torrent.free_torrent );
+
+    Logger::info( response );
+    return response;
+
   } else {
-    std::cout << "Failed to find torrent " << info_hash_hex << std::endl;
+    std::string response = "Failed to find torrent " + info_hash_hex;
+
+    Logger::error( response );
+    return error(response);
   }
 }
