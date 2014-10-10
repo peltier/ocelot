@@ -39,6 +39,6 @@ script:
   - cp src/config.cpp.template src/config.cpp
   - cmake . -DBUILD_TESTING=ON
   - make ocelot_tests
-  - ./bin/ocelot_tests --gtest_filter="AnnounceControllerTests.*"
+  - ./bin/ocelot_tests
 notifications:
   email: false
