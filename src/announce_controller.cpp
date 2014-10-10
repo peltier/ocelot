@@ -9,6 +9,16 @@
 //
 // Private
 //
+std::string AnnounceController::before__authenticate() {
+  auto user_vec = UserListCache::find( m_request.get_passkey() );
+  
+  if( user_vec.empty() ) {
+    return error("Authentication failure");
+  }
+  
+  return "";
+}
+
 std::string AnnounceController::before__validate_torrent() {
   auto params = m_request.get_params();
   
@@ -36,6 +46,14 @@ std::string AnnounceController::before__validate_torrent() {
   return "";
 }
 
+int64_t stoll_safe( std::string value ) {
+  try {
+    return std::stoll( value );
+  } catch (...) {
+    return 0;
+  }
+}
+
 peer_list::iterator add_peer(peer_list &peer_list, std::string &peer_id) {
   peer new_peer;
   std::pair<peer_list::iterator, bool> insert
@@ -53,6 +71,12 @@ bool peer_is_visible(user_ptr &u, peer *p) {
 // Public
 //
 std::string AnnounceController::get_response() {
+
+  // Before we announce, let's authrenticate
+  auto auth_error = before__authenticate();
+  if( !auth_error.empty() ) {
+    return auth_error;
+  }
   
   // Before we announce, let's validate the torrent
   auto torrent_error = before__validate_torrent();
@@ -92,12 +116,12 @@ std::string AnnounceController::get_response() {
   }
   bool gzip = false;
   
-  int64_t left = std::max((long long)0, std::stoll(params["left"]));
-  int64_t uploaded = std::max((long long)0, std::stoll(params["uploaded"]));
-  int64_t downloaded = std::max((long long)0, std::stoll(params["downloaded"]));
+  int64_t left = stoll_safe(params["left"]);
+  int64_t uploaded = stoll_safe(params["uploaded"]);
+  int64_t downloaded = stoll_safe(params["downloaded"]);
   int64_t corrupt = 0; // TODO: Is this assumption safe?
   if( params.count("corrupt") > 0 ) {
-    std::max((long long)0, std::stoll(params["corrupt"]));
+    stoll_safe(params["corrupt"]);
   }
   
   int snatched = 0; // This is the value that gets sent to the database on a snatch

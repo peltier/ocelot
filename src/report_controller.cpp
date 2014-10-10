@@ -40,8 +40,6 @@ std::string ReportController::get_response() {
   
   std::stringstream output;
   
-  output << "<h3>Tracker Stats</h3>";
-  
   std::string action = params["get"];
   if (action == "") {
     output << "Invalid action\n";
@@ -58,6 +56,8 @@ std::string ReportController::get_response() {
     std::string up_st = up_s <= 9 ? '0' + std::to_string(up_s) : std::to_string(up_s);
     
     output
+    
+    << "<h3>Tracker Stats</h3>"
     
     << "<table>"
     
@@ -130,18 +130,42 @@ std::string ReportController::get_response() {
     if (key == "") {
       output << "Invalid action\n";
     } else {
-      auto users_vec = UserListCache::find( m_request.get_passkey() );
+      auto users_vec = UserListCache::find( params["key"] );
+      // Found the user!
       if ( !users_vec.empty() ) {
         auto user = users_vec.front();
-      
-        output << user->get_leeching() << " leeching\n"
-        << user->get_seeding() << " seeding\n";
+        
+        output
+        << "<h3>Tracker Stats</h3>"
+        << "<table>"
+        
+        << "<tr>"
+        << "<th><b>Stat</b></th>"
+        << "<th><b>Value</b></th>"
+        << "</tr>"
+        
+        << "<tr>"
+        << "<td>" << "Leeching" << "</td>"
+        << "<td>" << user->get_leeching() << "</td>"
+        << "</tr>"
+        
+        << "<tr>"
+        << "<td>" << "Seeding" << "</td>"
+        << "<td>" << user->get_seeding() << "</td>"
+        << "</tr>"
+        
+        << "</table>"
+        
+        << style_sheet();
+      }
+      // Cannot find the user
+      else {
+        output << "No such user!\n";
       }
     }
   } else {
     output << "Invalid action\n";
   }
-  output << "success";
   return html( output.str() );
   
 }

@@ -17,6 +17,7 @@ class AnnounceController {
     std::string get_response();
     
   private:
+    std::string before__authenticate();
     std::string before__validate_torrent();
   
     Request m_request;

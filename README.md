@@ -1,6 +1,6 @@
 ## Ocelot
 
-[![Build Status](https://travis-ci.org/pmirror/ocelot.svg?branch=master)](https://travis-ci.org/pmirror/ocelot)
+[![Build Status](https://travis-ci.org/peltier/ocelot.svg?branch=master)](https://travis-ci.org/peltier/ocelot)
 
 A light-weight high-speed BitTorrent tracker written in C++. Part of the Gazelle Project.
 
@@ -17,7 +17,15 @@ cmake .
 make
 ```
 
-This will create a folder called `bin` and place the `ocelot` binary inside.
+This will create a folder called `bin` and place the `ocelot_server` binary inside.
+
+### Development
+
+Those who would like to run the test suite need to download gmock (currently version 1.7.0) in the immediate parent directory of ocelot, and need to run `cmake . -DBUILD_TESTING=1` to enable the `ocelot_tests` target.
+
+Currently, tests are using `config.cpp` to setup ocelot and run the suite. Please load the sql dump called `snapshot.sql` which is located in the test directory prior to running the test suite, or the majority of the tests will fail.
+
+To build and run the tests, you can use `make ocelot_tests` and run `./bin/ocelot_tests`.
 
 ### Dependencies
 
@@ -33,7 +41,7 @@ By default, CMake will assume these can all be found in `/usr/local/include`,  `
 
 ### Platforms
 
-Ocelot has been tested on OSX Mavericks using Clang, and Ubuntu 14.04 using GCC 4.8.
+Ocelot has been tested on OSX Mavericks using Clang, Gentoo 64bit, and Ubuntu 12.04/ 14.04 using GCC 4.8.
 
 ### License
 

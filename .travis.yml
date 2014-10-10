@@ -21,10 +21,24 @@ before_install:
   - sudo apt-get install -y libboost1.54-all-dev
 # libev
   - sudo apt-get install -y libev-dev
+# gmock / gtest
+  - sudo apt-get install -y unzip
+  - curl -o ../gmock-1.7.0.zip -O https://googlemock.googlecode.com/files/gmock-1.7.0.zip
+  - unzip ../gmock-1.7.0.zip -d ..
+  - cd ../gmock-1.7.0
+  - cmake .
+  - make
+  - cd ../ocelot # Return to project directory for tests
+
+before_script:
+# Setup test DB dump
+  - mysql -e 'create database gazelle;' -u root
+  - mysql -u root gazelle < test/snapshot.sql
 
 script:
   - cp src/config.cpp.template src/config.cpp
-  - cmake .
-  - make
+  - cmake . -DBUILD_TESTING=ON
+  - make ocelot_tests
+  - ./bin/ocelot_tests
 notifications:
   email: false
