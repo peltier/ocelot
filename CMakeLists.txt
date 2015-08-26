@@ -79,6 +79,27 @@ FIND_LIBRARY(
   )
 
 FIND_LIBRARY(
+  BOOST_LOG_LIBS
+  NAMES
+  libboost_log-mt.a
+  HINTS /usr/local/lib
+  )
+
+FIND_LIBRARY(
+  BOOST_LOG_SETUP_LIBS
+  NAMES
+  libboost_log_setup-mt.a
+  HINTS /usr/local/lib
+  )
+
+FIND_LIBRARY(
+  BOOST_THREAD_LIBS
+  NAMES
+  libboost_thread-mt.a
+  HINTS /usr/local/lib
+  )
+
+FIND_LIBRARY(
   BOOST_SYSTEM_LIBS
   NAMES
   boost_system
@@ -143,8 +164,11 @@ TARGET_LINK_LIBRARIES(
   ${LIBRARY_NAME}
   ${EV_LIBS}
   ${MYSQLPP_LIBS}
+  ${BOOST_LOG_LIBS}
+  ${BOOST_LOG_SETUP_LIBS}
   ${BOOST_IOSTREAMS_LIBS}
   ${BOOST_SYSTEM_LIBS}
+  ${BOOST_THREAD_LIBS}
   ${LIBC++}
   ${PTHREAD}
   )
@@ -152,7 +176,7 @@ TARGET_LINK_LIBRARIES(
 #
 # Project Test and Test Runner
 #
-set(BUILD_TESTING 0 CACHE FILEPATH "testing")
+SET(BUILD_TESTING 0 CACHE FILEPATH "testing")
 IF (BUILD_TESTING)
 
   #
@@ -210,7 +234,10 @@ IF (BUILD_TESTING)
     ${EV_LIBS}
     ${MYSQLPP_LIBS}
     ${BOOST_IOSTREAMS_LIBS}
+    ${BOOST_LOG_LIBS}
+    ${BOOST_LOG_SETUP_LIBS}
     ${BOOST_SYSTEM_LIBS}
+    ${BOOST_THREAD_LIBS}
     ${GTEST_LIBS}
     ${GTEST_MAIN_LIBS}
     ${GMOCK_LIBS}
