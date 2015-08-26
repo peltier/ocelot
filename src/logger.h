@@ -6,20 +6,24 @@
 #include <string>
 
 enum class LogLevel {
+  TRACE,
+  DEBUG,
   INFO,
-  WARN,
+  WARNING,
   ERROR,
-  FAIL
+  FATAL
 };
 
 class Logger {
   public:
     Logger() {}
 
+    static void trace( std::string message );
+    static void debug( std::string message );
     static void info( std::string message );
-    static void warn( std::string message );
+    static void warning( std::string message );
     static void error( std::string message );
-    static void fail( std::string message );
+    static void fatal( std::string message );
     static void set_log_level( LogLevel level );
 };
 

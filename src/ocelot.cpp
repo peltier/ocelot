@@ -13,7 +13,7 @@ static worker *work;
 struct stats_t stats;
 
 static void sig_handler(int sig) {
-  Logger::warn("Caught SIGINT/SIGTERM");
+  Logger::warning("Caught SIGINT/SIGTERM");
   if (work->signal(sig)) {
     exit(0);
   }
@@ -22,7 +22,7 @@ static void sig_handler(int sig) {
 int ocelot_main(int argc, char **argv) {
   // we don't use printf so make cout/cerr a little bit faster
   std::ios_base::sync_with_stdio(false);
-  
+
   Logger::set_log_level( LogLevel::INFO );
 
   signal(SIGINT, sig_handler);
@@ -36,13 +36,13 @@ int ocelot_main(int argc, char **argv) {
   }
 
   auto db = mysql::get_instance();
-  
+
   if (!db->connected()) {
-    Logger::fail("Cannot connect to database!");
+    Logger::fatal("Cannot connect to database!");
     return 0;
   }
   db->m_verbose_flush = verbose;
-  
+
   config conf;
 
   site_comm sc;
@@ -50,16 +50,16 @@ int ocelot_main(int argc, char **argv) {
 
   std::vector<std::string> whitelist;
   db->load_whitelist(whitelist);
-  
+
   Logger::info("Loaded " + std::to_string( whitelist.size() ) + " clients into the whitelist");
-  
+
   if (whitelist.size() == 0) {
     Logger::info("Assuming no whitelist desired, disabling");
   }
 
   user_list users_list;
   db->load_users(users_list);
-  
+
   Logger::info("Loaded " + std::to_string( users_list.size() ) + " users");
 
   torrent_list torrents_list;
@@ -79,7 +79,7 @@ int ocelot_main(int argc, char **argv) {
   stats.bytes_read = 0;
   stats.bytes_written = 0;
   stats.start_time = time(NULL);
-  
+
   // Set Cache
   TorrentListCache::set( torrents_list );
   UserListCache::set( users_list );

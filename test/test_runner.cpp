@@ -59,12 +59,12 @@ class TestEnvironment : public ::testing::Environment {
       std::thread ocelot([] {
         ocelot_main(1, (char **)'\0' );
       });
-      
+
       ocelot.detach();
       std::this_thread::sleep_for( std::chrono::seconds(1) );
-      
-      Logger::warn("Disabling logging while in test mode.");
-      Logger::set_log_level( LogLevel::FAIL );
+
+      Logger::warning("Disabling logging while in test mode.");
+      Logger::set_log_level( LogLevel::FATAL );
     }
 
     virtual void TearDown() {

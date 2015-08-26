@@ -46,7 +46,7 @@ bool worker::signal(int sig) {
     Logger::info("closing tracker... press Ctrl-C again to terminate");
     return false;
   } else if (m_status == CLOSING) {
-    Logger::warn("shutting down uncleanly");
+    Logger::warning("shutting down uncleanly");
     return true;
   } else {
     return false;
@@ -61,32 +61,32 @@ std::string worker::on_request( Request request ) {
   if ( !request.is_valid() ) {
     return error("GET string too short");
   }
-  
+
   // Get the announce url passkey
   std::string passkey = request.get_passkey();
-  
+
   // Check if passkey is valid
   if( passkey.empty() ) {
     return error("Malformed announce");
   }
-  
+
   // Get Action
   action_t action = request.get_action();
 
   // Get Request Params
   params_map_t params = request.get_params();
-  
+
   // Check integrity and permissions
   if ( params.empty() ) {
     // No parameters given. Probably means we're not talking to a torrent client
     return response("Nothing to see here", false, true);
   }
-  
+
   // Check tracker status
   if (m_status != OPEN && action != UPDATE) {
     return error("The tracker is temporarily unavailable.");
   }
-  
+
   switch (action) {
     case ANNOUNCE:
       return AnnounceController::on_request( request );
